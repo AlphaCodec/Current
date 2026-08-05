@@ -33,10 +33,11 @@ import com.current.news.ui.theme.*
 
 @Composable
 fun ExploreScreen(onOpenSearch: () -> Unit) {
+    val colors = LocalAppColors.current
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Ink)
+            .background(colors.background)
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
     ) {
@@ -46,12 +47,12 @@ fun ExploreScreen(onOpenSearch: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Explore", fontFamily = DisplayFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = TextHi)
+                Text("Explore", fontFamily = DisplayFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = colors.textHi)
                 Box(
-                    Modifier.size(32.dp).clip(CircleShape).border(1.dp, LineSoft, CircleShape),
+                    Modifier.size(32.dp).clip(CircleShape).border(1.dp, colors.lineSoft, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Outlined.Person, contentDescription = "Profile", tint = TextMid, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.Person, contentDescription = "Profile", tint = colors.textMid, modifier = Modifier.size(16.dp))
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -61,15 +62,15 @@ fun ExploreScreen(onOpenSearch: () -> Unit) {
                     .fillMaxWidth()
                     .height(42.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Ink3)
-                    .border(1.dp, LineSoft, RoundedCornerShape(12.dp))
+                    .background(colors.surfaceVariant)
+                    .border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp))
                     .clickable { onOpenSearch() }
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Outlined.Search, contentDescription = null, tint = TextLo, modifier = Modifier.size(16.dp))
+                Icon(Icons.Outlined.Search, contentDescription = null, tint = colors.textLo, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(10.dp))
-                Text("Search stories, topics, writers", fontFamily = BodyFont, fontSize = 13.sp, color = TextLo)
+                Text("Search stories, topics, writers", fontFamily = BodyFont, fontSize = 13.sp, color = colors.textLo)
             }
             Spacer(Modifier.height(22.dp))
 
@@ -101,13 +102,14 @@ fun ExploreScreen(onOpenSearch: () -> Unit) {
 
 @Composable
 private fun TopicTile(topic: Topic) {
+    val colors = LocalAppColors.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(78.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(Brush.linearGradient(listOf(topic.colorStart, topic.colorEnd)))
-            .border(1.dp, LineSoft, RoundedCornerShape(12.dp))
+            .border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp))
             .padding(12.dp)
     ) {
         Text(
@@ -115,7 +117,7 @@ private fun TopicTile(topic: Topic) {
             fontFamily = DisplayFont,
             fontWeight = FontWeight.SemiBold,
             fontSize = 14.5.sp,
-            color = TextHi,
+            color = androidx.compose.ui.graphics.Color.White,
             modifier = Modifier.align(Alignment.BottomStart)
         )
     }
@@ -123,6 +125,7 @@ private fun TopicTile(topic: Topic) {
 
 @Composable
 private fun WriterChip(writer: Writer) {
+    val colors = LocalAppColors.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.width(90.dp)
@@ -131,11 +134,11 @@ private fun WriterChip(writer: Writer) {
             Modifier
                 .size(58.dp)
                 .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(Ink3, Ink)))
-                .border(1.dp, LineSoft, CircleShape)
+                .background(Brush.linearGradient(listOf(colors.surfaceVariant, colors.background)))
+                .border(1.dp, colors.lineSoft, CircleShape)
         )
         Spacer(Modifier.height(8.dp))
-        Text(writer.name, fontFamily = BodyFont, fontWeight = FontWeight.Medium, fontSize = 11.5.sp, color = TextHi)
-        Text(writer.beat, fontFamily = MonoFont, fontSize = 9.sp, color = TextLo)
+        Text(writer.name, fontFamily = BodyFont, fontWeight = FontWeight.Medium, fontSize = 11.5.sp, color = colors.textHi)
+        Text(writer.beat, fontFamily = MonoFont, fontSize = 9.sp, color = colors.textLo)
     }
 }

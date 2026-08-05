@@ -37,11 +37,12 @@ fun HomeScreen(
     onOpenArticle: (String) -> Unit
 ) {
     val state by viewModel.homeState.collectAsState()
+    val colors = LocalAppColors.current
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Ink)
+            .background(colors.background)
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
     ) {
@@ -52,17 +53,17 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row {
-                    Text("Cur", fontFamily = DisplayFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = TextHi)
-                    Text("rent", fontFamily = DisplayFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = Red)
+                    Text("Cur", fontFamily = DisplayFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = colors.textHi)
+                    Text("rent", fontFamily = DisplayFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = colors.red)
                 }
                 Box(
                     Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .border(1.dp, LineSoft, CircleShape),
+                        .border(1.dp, colors.lineSoft, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Outlined.Person, contentDescription = "Profile", tint = TextMid, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.Person, contentDescription = "Profile", tint = colors.textMid, modifier = Modifier.size(16.dp))
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -84,8 +85,8 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(RedDim)
-                    .border(1.dp, Color(0xFF7A2B26), RoundedCornerShape(10.dp))
+                    .background(colors.redDim)
+                    .border(1.dp, colors.red.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -93,13 +94,13 @@ fun HomeScreen(
                     Modifier
                         .size(7.dp)
                         .clip(CircleShape)
-                        .background(Red)
+                        .background(colors.red)
                 )
                 Spacer(Modifier.width(8.dp))
                 Column {
-                    Text("LIVE NOW", fontFamily = MonoFont, fontSize = 9.5.sp, letterSpacing = 0.6.sp, color = Red)
+                    Text("LIVE NOW", fontFamily = MonoFont, fontSize = 9.5.sp, letterSpacing = 0.6.sp, color = colors.red)
                     Spacer(Modifier.height(2.dp))
-                    Text(state.liveHeadline, fontFamily = BodyFont, fontSize = 12.sp, color = Color(0xFFF3D3D0), fontWeight = FontWeight.Medium)
+                    Text(state.liveHeadline, fontFamily = BodyFont, fontSize = 12.sp, color = colors.redDimText, fontWeight = FontWeight.Medium)
                 }
             }
             Spacer(Modifier.height(20.dp))
@@ -125,6 +126,7 @@ fun HomeScreen(
 
 @Composable
 private fun HeroCard(article: Article, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -138,7 +140,7 @@ private fun HeroCard(article: Article, onClick: () -> Unit) {
                 .align(Alignment.BottomStart)
                 .padding(16.dp)
         ) {
-            Text(article.category.uppercase(), fontFamily = MonoFont, fontSize = 10.sp, letterSpacing = 0.6.sp, color = Gold)
+            Text(article.category.uppercase(), fontFamily = MonoFont, fontSize = 10.sp, letterSpacing = 0.6.sp, color = colors.gold)
             Spacer(Modifier.height(8.dp))
             Text(
                 article.title,

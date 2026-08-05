@@ -38,11 +38,12 @@ enum class AppTab(val route: String, val label: String) {
 
 @Composable
 fun BottomNavBar(current: AppTab, onSelect: (AppTab) -> Unit) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Ink2)
-            .border(width = 1.dp, color = Line)
+            .background(colors.surface)
+            .border(width = 1.dp, color = colors.line)
             .height(64.dp)
             .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.SpaceAround,
@@ -65,13 +66,13 @@ fun BottomNavBar(current: AppTab, onSelect: (AppTab) -> Unit) {
                 Icon(
                     imageVector = icon,
                     contentDescription = tab.label,
-                    tint = if (active) TextHi else TextLo,
+                    tint = if (active) colors.textHi else colors.textLo,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = tab.label.uppercase(),
-                    color = if (active) TextHi else TextLo,
+                    color = if (active) colors.textHi else colors.textLo,
                     fontFamily = MonoFont,
                     fontSize = 8.5.sp,
                     letterSpacing = 0.5.sp
@@ -83,17 +84,18 @@ fun BottomNavBar(current: AppTab, onSelect: (AppTab) -> Unit) {
 
 @Composable
 fun Pill(text: String, active: Boolean, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Text(
         text = text,
         fontFamily = MonoFont,
         fontSize = 10.5.sp,
         letterSpacing = 0.5.sp,
-        color = if (active) Ink else TextMid,
+        color = if (active) colors.background else colors.textMid,
         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(if (active) TextHi else Color.Transparent)
-            .border(1.dp, if (active) TextHi else LineSoft, RoundedCornerShape(20.dp))
+            .background(if (active) colors.textHi else Color.Transparent)
+            .border(1.dp, if (active) colors.textHi else colors.lineSoft, RoundedCornerShape(20.dp))
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 6.dp)
     )
@@ -101,16 +103,17 @@ fun Pill(text: String, active: Boolean, onClick: () -> Unit) {
 
 @Composable
 fun GhostChip(text: String, active: Boolean, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Text(
         text = text.uppercase(),
         fontFamily = MonoFont,
         fontSize = 10.sp,
         letterSpacing = 0.5.sp,
-        color = if (active) Red else TextMid,
+        color = if (active) colors.red else colors.textMid,
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (active) Red.copy(alpha = 0.1f) else Color.Transparent)
-            .border(1.dp, if (active) Red else LineSoft, RoundedCornerShape(8.dp))
+            .background(if (active) colors.red.copy(alpha = 0.1f) else Color.Transparent)
+            .border(1.dp, if (active) colors.red else colors.lineSoft, RoundedCornerShape(8.dp))
             .clickable { onClick() }
             .padding(horizontal = 10.dp, vertical = 5.dp)
     )
@@ -118,26 +121,28 @@ fun GhostChip(text: String, active: Boolean, onClick: () -> Unit) {
 
 @Composable
 fun SectionLabel(text: String) {
+    val colors = LocalAppColors.current
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Text(
             text = text.uppercase(),
             fontFamily = MonoFont,
             fontSize = 10.5.sp,
             letterSpacing = 1.sp,
-            color = TextLo
+            color = colors.textLo
         )
         Spacer(Modifier.width(8.dp))
         Box(
             Modifier
                 .weight(1f)
                 .height(1.dp)
-                .background(LineSoft)
+                .background(colors.lineSoft)
         )
     }
 }
 
 @Composable
 fun StoryRow(article: Article, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -159,7 +164,7 @@ fun StoryRow(article: Article, onClick: () -> Unit) {
                 fontFamily = MonoFont,
                 fontSize = 9.5.sp,
                 letterSpacing = 0.5.sp,
-                color = Red
+                color = colors.red
             )
             Spacer(Modifier.height(5.dp))
             Text(
@@ -168,7 +173,7 @@ fun StoryRow(article: Article, onClick: () -> Unit) {
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.5.sp,
                 lineHeight = 19.sp,
-                color = TextHi,
+                color = colors.textHi,
                 maxLines = 3
             )
             Spacer(Modifier.height(6.dp))
@@ -176,7 +181,7 @@ fun StoryRow(article: Article, onClick: () -> Unit) {
                 text = "${article.author} · ${article.timeAgo}",
                 fontFamily = MonoFont,
                 fontSize = 10.sp,
-                color = TextLo
+                color = colors.textLo
             )
         }
     }

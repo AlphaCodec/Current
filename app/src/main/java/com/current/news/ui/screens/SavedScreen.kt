@@ -26,20 +26,21 @@ fun SavedScreen(
     onOpenArticle: (String) -> Unit
 ) {
     val saved by viewModel.savedArticles.collectAsState()
+    val colors = LocalAppColors.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Ink)
+            .background(colors.background)
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        Text("Saved", fontFamily = DisplayFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = TextHi)
+        Text("Saved", fontFamily = DisplayFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = colors.textHi)
         Spacer(Modifier.height(4.dp))
         Text(
             "${saved.size} ${if (saved.size == 1) "story" else "stories"} saved for later",
             fontFamily = MonoFont,
             fontSize = 10.5.sp,
-            color = TextLo
+            color = colors.textLo
         )
         Spacer(Modifier.height(16.dp))
 
@@ -49,15 +50,15 @@ fun SavedScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Outlined.BookmarkBorder, contentDescription = null, tint = TextLo, modifier = Modifier.size(32.dp))
+                Icon(Icons.Outlined.BookmarkBorder, contentDescription = null, tint = colors.textLo, modifier = Modifier.size(32.dp))
                 Spacer(Modifier.height(12.dp))
-                Text("Nothing saved yet", fontFamily = DisplayFont, fontSize = 15.sp, color = TextHi)
+                Text("Nothing saved yet", fontFamily = DisplayFont, fontSize = 15.sp, color = colors.textHi)
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "Tap the bookmark icon on any story to keep it here.",
                     fontFamily = BodyFont,
                     fontSize = 12.5.sp,
-                    color = TextLo
+                    color = colors.textLo
                 )
             }
         } else {

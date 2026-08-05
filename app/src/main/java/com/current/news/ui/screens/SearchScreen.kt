@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,11 +37,12 @@ fun SearchScreen(
     onOpenArticle: (String) -> Unit
 ) {
     val state by viewModel.searchState.collectAsState()
+    val colors = LocalAppColors.current
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Ink)
+            .background(colors.background)
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
     ) {
@@ -50,11 +52,11 @@ fun SearchScreen(
                     Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .border(1.dp, LineSoft, CircleShape)
+                        .border(1.dp, colors.lineSoft, CircleShape)
                         .clickable { onBack() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", tint = TextMid, modifier = Modifier.size(16.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", tint = colors.textMid, modifier = Modifier.size(16.dp))
                 }
             }
             Spacer(Modifier.height(14.dp))
@@ -64,23 +66,23 @@ fun SearchScreen(
                     .fillMaxWidth()
                     .height(42.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Ink3)
-                    .border(1.dp, TextHi, RoundedCornerShape(12.dp))
+                    .background(colors.surfaceVariant)
+                    .border(1.dp, colors.textHi, RoundedCornerShape(12.dp))
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Outlined.Search, contentDescription = null, tint = TextMid, modifier = Modifier.size(16.dp))
+                Icon(Icons.Outlined.Search, contentDescription = null, tint = colors.textMid, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(10.dp))
                 Box(Modifier.weight(1f)) {
                     if (state.query.isEmpty()) {
-                        Text("Search stories, topics, writers", fontFamily = BodyFont, fontSize = 13.sp, color = TextLo)
+                        Text("Search stories, topics, writers", fontFamily = BodyFont, fontSize = 13.sp, color = colors.textLo)
                     }
                     BasicTextField(
                         value = state.query,
                         onValueChange = { viewModel.updateQuery(it) },
                         singleLine = true,
-                        textStyle = TextStyle(fontFamily = BodyFont, fontSize = 13.sp, color = TextHi),
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(Red),
+                        textStyle = TextStyle(fontFamily = BodyFont, fontSize = 13.sp, color = colors.textHi),
+                        cursorBrush = SolidColor(colors.red),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -91,7 +93,7 @@ fun SearchScreen(
                 text = "${state.results.size} results · sorted by relevance",
                 fontFamily = MonoFont,
                 fontSize = 10.5.sp,
-                color = TextLo,
+                color = colors.textLo,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
 
@@ -111,7 +113,7 @@ fun SearchScreen(
                     "No stories match \"${state.query}\". Try a different keyword.",
                     fontFamily = BodyFont,
                     fontSize = 13.sp,
-                    color = TextMid,
+                    color = colors.textMid,
                     modifier = Modifier.padding(vertical = 24.dp)
                 )
             }

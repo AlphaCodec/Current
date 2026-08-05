@@ -16,11 +16,12 @@ import com.current.news.ui.components.AppTab
 import com.current.news.ui.components.BottomNavBar
 import com.current.news.ui.screens.*
 import com.current.news.viewmodel.NewsViewModel
+import com.current.news.viewmodel.SettingsViewModel
 
 private const val ROUTE_ARTICLE = "article/{articleId}"
 
 @Composable
-fun CurrentNavGraph() {
+fun CurrentNavGraph(settingsViewModel: SettingsViewModel) {
     val navController = rememberNavController()
     val viewModel: NewsViewModel = viewModel()
 
@@ -45,7 +46,7 @@ fun CurrentNavGraph() {
                     })
                 }
                 composable(AppTab.Profile.route) {
-                    ProfileScreen()
+                    ProfileScreen(settingsViewModel = settingsViewModel)
                 }
                 composable("search") {
                     SearchScreen(
