@@ -24,15 +24,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.current.news.ui.theme.*
 import com.current.news.viewmodel.NewsViewModel
 
@@ -45,6 +48,7 @@ fun ArticleScreen(
     val article = viewModel.article(articleId)
     val savedIds by viewModel.savedArticles.collectAsState()
     val isSaved = savedIds.any { it.id == articleId }
+    val context = LocalContext.current
 
     if (article == null) {
         Box(Modifier.fillMaxSize().background(Paper), contentAlignment = Alignment.Center) {
@@ -109,7 +113,7 @@ fun ArticleScreen(
                     Spacer(Modifier.width(10.dp))
                     Column {
                         Text(article.author, fontFamily = BodyFont, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = PaperInk)
-                        Text("Senior correspondent · ${article.readTime}", fontFamily = MonoFont, fontSize = 10.sp, color = PaperMuted)
+                        Text("${article.sourceName} · ${article.readTime} · ${article.timeAgo}", fontFamily = MonoFont, fontSize = 10.sp, color = PaperMuted)
                     }
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(PaperLine))
@@ -121,7 +125,16 @@ fun ArticleScreen(
                         .height(170.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(Brush.linearGradient(listOf(Color(0xFF8F8A78), Color(0xFF5B5648))))
-                )
+                ) {
+                    if (!article.imageUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = article.imageUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
                 if (article.caption.isNotBlank()) {
                     Spacer(Modifier.height(8.dp))
                     Text(article.caption, fontFamily = MonoFont, fontSize = 10.sp, color = PaperMuted)
@@ -130,6 +143,28 @@ fun ArticleScreen(
             }
 
             itemsIndexed(article.body)
+
+            if (!article.articleUrl.isNullOrBlank()) {
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "READ FULL STORY AT ${article.sourceName.uppercase()} →",
+                        fontFamily = MonoFont,
+                        fontSize = 10.5.sp,
+                        letterSpacing = 0.4.sp,
+                        color = Red,
+                        modifier = Modifier
+                            .clickable {
+                                val intent = android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(article.articleUrl)
+                                )
+                                context.startActivity(intent)
+                            }
+                            .padding(vertical = 12.dp)
+                    )
+                }
+            }
         }
 
         Row(
@@ -146,8 +181,14 @@ fun ArticleScreen(
                 icon = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.Bookmark,
                 label = "Save",
                 tint = if (isSaved) Red else Color(0xFF8A8478)
-            ) { viewModel.toggleSave(article.id) }
-            ReaderToolItem(icon = Icons.Outlined.Share, label = "Share") { }
+            ) { viewModel.toggleSave(article) }
+            ReaderToolItem(icon = Icons.Outlined.Share, label = "Share") {
+                val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, "${article.title}\n${article.articleUrl ?: ""}")
+                }
+                context.startActivity(android.content.Intent.createChooser(sendIntent, null))
+            }
             ReaderToolItem(icon = Icons.Outlined.Headphones, label = "Listen") { }
             ReaderToolItem(icon = Icons.Outlined.MoreHoriz, label = "More") { }
         }

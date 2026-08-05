@@ -18,10 +18,13 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,10 +33,18 @@ import com.current.news.data.Topic
 import com.current.news.data.Writer
 import com.current.news.ui.components.SectionLabel
 import com.current.news.ui.theme.*
+import com.current.news.viewmodel.NewsViewModel
 
 @Composable
-fun ExploreScreen(onOpenSearch: () -> Unit) {
+fun ExploreScreen(
+    viewModel: NewsViewModel,
+    onOpenSearch: () -> Unit,
+    onOpenTopic: (edition: String) -> Unit
+) {
     val colors = LocalAppColors.current
+    val homeState by viewModel.homeState.collectAsState()
+    val writers = NewsRepository.writersFrom(homeState.stories + listOfNotNull(homeState.hero))
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -85,23 +96,34 @@ fun ExploreScreen(onOpenSearch: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(NewsRepository.topics) { topic -> TopicTile(topic) }
+                items(NewsRepository.topics) { topic ->
+                    TopicTile(topic) { onOpenTopic(topic.label) }
+                }
             }
             Spacer(Modifier.height(22.dp))
-            SectionLabel("Writers to follow")
+            SectionLabel("Writers in today's feed")
             Spacer(Modifier.height(12.dp))
         }
 
         item {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                items(NewsRepository.writers) { writer -> WriterChip(writer) }
+            if (writers.isEmpty()) {
+                Text(
+                    "Open Home to load today's stories, and bylines will show up here.",
+                    fontFamily = BodyFont,
+                    fontSize = 12.5.sp,
+                    color = colors.textLo
+                )
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    items(writers) { writer -> WriterChip(writer) }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun TopicTile(topic: Topic) {
+private fun TopicTile(topic: Topic, onClick: () -> Unit) {
     val colors = LocalAppColors.current
     Box(
         modifier = Modifier
@@ -110,6 +132,7 @@ private fun TopicTile(topic: Topic) {
             .clip(RoundedCornerShape(12.dp))
             .background(Brush.linearGradient(listOf(topic.colorStart, topic.colorEnd)))
             .border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp))
+            .clickable { onClick() }
             .padding(12.dp)
     ) {
         Text(
@@ -117,7 +140,7 @@ private fun TopicTile(topic: Topic) {
             fontFamily = DisplayFont,
             fontWeight = FontWeight.SemiBold,
             fontSize = 14.5.sp,
-            color = androidx.compose.ui.graphics.Color.White,
+            color = Color.White,
             modifier = Modifier.align(Alignment.BottomStart)
         )
     }
@@ -138,7 +161,7 @@ private fun WriterChip(writer: Writer) {
                 .border(1.dp, colors.lineSoft, CircleShape)
         )
         Spacer(Modifier.height(8.dp))
-        Text(writer.name, fontFamily = BodyFont, fontWeight = FontWeight.Medium, fontSize = 11.5.sp, color = colors.textHi)
-        Text(writer.beat, fontFamily = MonoFont, fontSize = 9.sp, color = colors.textLo)
+        Text(writer.name, fontFamily = BodyFont, fontWeight = FontWeight.Medium, fontSize = 11.5.sp, color = colors.textHi, maxLines = 1)
+        Text(writer.beat, fontFamily = MonoFont, fontSize = 9.sp, color = colors.textLo, maxLines = 1)
     }
 }

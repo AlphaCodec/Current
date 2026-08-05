@@ -23,9 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.current.news.data.Article
 import com.current.news.ui.theme.*
 
@@ -157,7 +159,16 @@ fun StoryRow(article: Article, onClick: () -> Unit) {
                 .background(
                     Brush.linearGradient(listOf(article.thumbColorStart, article.thumbColorEnd))
                 )
-        )
+        ) {
+            if (!article.imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = article.imageUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
+                )
+            }
+        }
         Column(Modifier.weight(1f)) {
             Text(
                 text = article.category.uppercase(),

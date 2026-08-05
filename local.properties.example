@@ -1,0 +1,7 @@
+# Copy this file to `local.properties` (already gitignored) for local builds,
+# or set NEWSDATA_API_KEY as an environment variable / GitHub Actions secret
+# for CI. Get a free key at https://newsdata.io/register (no credit card,
+# free tier is licensed for commercial use, 200 requests/day).
+
+sdk.dir=/path/to/your/Android/sdk
+NEWSDATA_API_KEY=your_newsdata_io_key_here

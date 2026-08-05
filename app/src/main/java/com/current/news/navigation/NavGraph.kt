@@ -38,7 +38,18 @@ fun CurrentNavGraph(settingsViewModel: SettingsViewModel) {
                     })
                 }
                 composable(AppTab.Explore.route) {
-                    ExploreScreen(onOpenSearch = { navController.navigate("search") })
+                    ExploreScreen(
+                        viewModel = viewModel,
+                        onOpenSearch = { navController.navigate("search") },
+                        onOpenTopic = { edition ->
+                            viewModel.selectEdition(edition)
+                            navController.navigate(AppTab.Home.route) {
+                                popUpTo(AppTab.Home.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
                 }
                 composable(AppTab.Saved.route) {
                     SavedScreen(viewModel = viewModel, onOpenArticle = { id ->

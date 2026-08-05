@@ -1,140 +1,219 @@
 package com.current.news.data
 
 import androidx.compose.ui.graphics.Color
+import com.current.news.BuildConfig
+import com.current.news.network.NewsDataArticleDto
+import com.current.news.network.NewsDataClient
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
+import kotlin.math.max
+import kotlin.math.min
+
+sealed class RepoResult<out T> {
+    data class Success<T>(val data: T) : RepoResult<T>()
+    data class Error(val message: String) : RepoResult<Nothing>()
+}
 
 /**
- * In-memory sample data source. Swap this out for a real API/DB-backed
- * repository (e.g. Retrofit + Room) once the app is wired to a backend —
- * the ViewModel layer above this is already written against a plain
- * suspend/StateFlow contract so the swap is mechanical.
+ * Talks to the NewsData.io free API (see network/NewsDataApi.kt). If no API
+ * key is configured, or the request fails (offline, rate limit, etc.), this
+ * falls back to a small bundled sample set — so the app is always runnable,
+ * and clearly signals which mode it's in via [Article] having empty
+ * [Article.imageUrl]/live network data vs sample gradients.
  */
 object NewsRepository {
 
-    val editions = listOf("For you", "World", "Business", "Technology", "Climate", "Culture")
-
-    val topics = listOf(
-        Topic("world", "World", Color(0xFF3A1F1C), Color(0xFF1A1210)),
-        Topic("climate", "Climate", Color(0xFF1F2A1C), Color(0xFF101A12)),
-        Topic("technology", "Technology", Color(0xFF1C2430), Color(0xFF10151C)),
-        Topic("culture", "Culture", Color(0xFF2C2417), Color(0xFF1A1610))
+    /** Display label -> NewsData.io `category` query value. */
+    val editions: List<Pair<String, String?>> = listOf(
+        "For you" to "top",
+        "World" to "world",
+        "Business" to "business",
+        "Technology" to "technology",
+        "Climate" to "environment",
+        "Culture" to "entertainment"
     )
 
-    val writers = listOf(
-        Writer("w1", "Priya Shah", "Logistics"),
-        Writer("w2", "Amara Osei", "Climate"),
-        Writer("w3", "Leo Marchetti", "Markets"),
-        Writer("w4", "Daniel Kwon", "Technology")
+    val topics: List<Topic> = listOf(
+        Topic("world", "World", "world", Color(0xFF3A1F1C), Color(0xFF1A1210)),
+        Topic("climate", "Climate", "environment", Color(0xFF1F2A1C), Color(0xFF101A12)),
+        Topic("technology", "Technology", "technology", Color(0xFF1C2430), Color(0xFF10151C)),
+        Topic("culture", "Culture", "entertainment", Color(0xFF2C2417), Color(0xFF1A1610))
     )
 
-    val articles: List<Article> = listOf(
-        Article(
-            id = "a1",
-            category = "Investigation",
-            title = "Inside the shipping delays reshaping global retail",
-            dek = "Ports from Rotterdam to Long Beach face a backlog that traces back to a single canal closure — and retailers are quietly rewriting their sourcing playbooks.",
-            author = "Priya Shah",
-            timeAgo = "12m ago",
-            readTime = "6 min read",
-            isHero = true,
-            thumbColorStart = Color(0xFF3A3D44),
-            thumbColorEnd = Color(0xFF1B1D21),
-            caption = "A container ship idles outside the Port of Rotterdam, October 2026.",
-            body = listOf(
-                "The backlog began, as these things often do, with a single point of failure. A canal closure in early autumn set off a chain reaction that logistics firms are still untangling three months later.",
-                "Retailers who once prized just-in-time delivery are now paying a premium for redundancy — warehousing closer to demand, diversified shipping lanes, and contracts that price in delay as the default, not the exception.",
-                "\"We used to optimize for cost per container,\" said one regional supply chain director. \"Now we optimize for the number of ways a shipment can still arrive if the first three routes fail.\"",
-                "Analysts expect the realignment to outlast the immediate crisis, permanently raising the baseline cost of global trade by an estimated two to four percent."
-            )
-        ),
-        Article(
-            id = "a2",
-            category = "Politics",
-            title = "Parliament reconvenes to debate infrastructure bill",
-            dek = "Lawmakers return from recess facing a narrowing window to pass the funding package before the fiscal year closes.",
-            author = "Reuters",
-            timeAgo = "24m ago",
-            readTime = "4 min read",
-            thumbColorStart = Color(0xFF3A3D44),
-            thumbColorEnd = Color(0xFF1B1D21),
-            body = listOf(
-                "The session opened with sharp exchanges over funding priorities, as opposition lawmakers pushed for regional infrastructure guarantees before agreeing to advance the bill.",
-                "Committee leaders say a revised draft could reach the floor within two weeks, though several riders remain contested."
-            )
-        ),
-        Article(
-            id = "a3",
-            category = "Climate",
-            title = "Coastal cities test new flood barrier design ahead of monsoon",
-            dek = "Engineers say the modular system can be deployed in under six hours, a fraction of the time required by permanent seawalls.",
-            author = "Amara Osei",
-            timeAgo = "41m ago",
-            readTime = "5 min read",
-            thumbColorStart = Color(0xFF3A3D44),
-            thumbColorEnd = Color(0xFF1B1D21),
-            body = listOf(
-                "Pilot installations along three low-lying districts will be monitored through the coming monsoon season, with early data feeding into a national resilience plan.",
-                "Local officials remain cautiously optimistic, noting the barriers are a stopgap rather than a substitute for longer-term drainage investment."
-            )
-        ),
-        Article(
-            id = "a4",
-            category = "Markets",
-            title = "Tech rally cools as investors rotate into value stocks",
-            dek = "A three-week run in growth names lost steam this week as traders locked in gains ahead of earnings season.",
-            author = "Bloomberg",
-            timeAgo = "1h ago",
-            readTime = "3 min read",
-            thumbColorStart = Color(0xFF3A3D44),
-            thumbColorEnd = Color(0xFF1B1D21),
-            body = listOf(
-                "The pullback was broad but shallow, with defensive sectors picking up the flows that growth stocks shed.",
-                "Strategists caution against reading too much into a single week, pointing to still-strong forward guidance across most large-cap tech names."
-            )
-        ),
-        Article(
-            id = "a5",
-            category = "Opinion",
-            title = "Why \"just-in-time\" was always a bet on calm seas",
-            dek = "The efficiency doctrine that defined a generation of supply chains never priced in the storm.",
-            author = "Leo Marchetti",
-            timeAgo = "2h ago",
-            readTime = "7 min read",
-            thumbColorStart = Color(0xFF3A3D44),
-            thumbColorEnd = Color(0xFF1B1D21),
-            body = listOf(
-                "Efficiency and resilience have always been in tension, and for thirty years efficiency won almost every argument.",
-                "That era is quietly ending, and the companies that adapt first will set the terms for everyone else."
-            )
-        ),
-        Article(
-            id = "a6",
-            category = "World",
-            title = "Canal authority outlines dredging timeline for early 2027",
-            dek = "A phased restoration plan aims to restore full transit capacity within fourteen months.",
-            author = "AP",
-            timeAgo = "1d ago",
-            readTime = "4 min read",
-            thumbColorStart = Color(0xFF3A3D44),
-            thumbColorEnd = Color(0xFF1B1D21),
-            body = listOf(
-                "The authority's revised timeline splits the project into three phases, prioritizing the deepest channel sections first.",
-                "Shipping alliances have welcomed the clarity even as they continue to route around the corridor in the interim."
-            )
-        )
-    )
+    val hasApiKey: Boolean get() = BuildConfig.NEWSDATA_API_KEY.isNotBlank()
 
-    val liveHeadline = "Central bank holds rates steady, signals cuts in Q1"
-
-    fun search(query: String): List<Article> {
-        if (query.isBlank()) return emptyList()
-        val q = query.trim().lowercase()
-        return articles.filter {
-            it.title.lowercase().contains(q) ||
-                it.category.lowercase().contains(q) ||
-                it.author.lowercase().contains(q) ||
-                it.dek.lowercase().contains(q)
+    suspend fun fetchArticles(category: String? = null, query: String? = null): RepoResult<List<Article>> {
+        if (!hasApiKey) {
+            return RepoResult.Success(sampleArticles(category))
+        }
+        return try {
+            val response = NewsDataClient.api.getLatest(
+                apiKey = BuildConfig.NEWSDATA_API_KEY,
+                category = category,
+                query = query
+            )
+            if (response.status == "success") {
+                val mapped = response.results.orEmpty().mapIndexedNotNull { index, dto ->
+                    dto.toArticle(isHero = index == 0)
+                }
+                if (mapped.isEmpty()) {
+                    RepoResult.Error("No results found.")
+                } else {
+                    RepoResult.Success(mapped)
+                }
+            } else {
+                RepoResult.Error(response.results_message ?: "The news service returned an error.")
+            }
+        } catch (e: java.io.IOException) {
+            RepoResult.Error("Couldn't reach the network. Check your connection and try again.")
+        } catch (e: retrofit2.HttpException) {
+            val message = when (e.code()) {
+                401, 403 -> "That API key was rejected. Double-check NEWSDATA_API_KEY."
+                429 -> "Daily request limit reached on the free plan. Try again tomorrow."
+                else -> "The news service returned an error (HTTP ${e.code()})."
+            }
+            RepoResult.Error(message)
+        } catch (e: Exception) {
+            RepoResult.Error("Something went wrong loading news: ${e.message ?: "unknown error"}")
         }
     }
 
-    fun byId(id: String): Article? = articles.find { it.id == id }
+    /** Derives a "writers" row from whatever articles are currently loaded. */
+    fun writersFrom(articles: List<Article>): List<Writer> =
+        articles
+            .filter { it.author.isNotBlank() && it.author != "Staff" }
+            .distinctBy { it.author }
+            .take(6)
+            .map { Writer(id = it.author, name = it.author, beat = it.sourceName) }
+
+    // ---- Mapping ----
+
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
+
+    private fun NewsDataArticleDto.toArticle(isHero: Boolean): Article? {
+        val safeTitle = title?.trim().orEmpty()
+        if (safeTitle.isEmpty()) return null
+
+        val publishedAtMillis = pubDate?.let {
+            try { dateFormat.parse(it)?.time } catch (e: Exception) { null }
+        } ?: System.currentTimeMillis()
+
+        val categoryLabel = category?.firstOrNull()
+            ?.replaceFirstChar { c -> c.uppercase() }
+            ?: "News"
+
+        val dek = description?.trim().orEmpty().ifBlank { "Tap to read the full story at the source." }
+        val bodyText = content?.trim()?.takeIf { it.isNotBlank() && it != "ONLY AVAILABLE IN PAID PLANS" }
+        val body = when {
+            bodyText != null -> bodyText.split(Regex("\n+")).filter { it.isNotBlank() }
+            dek.isNotBlank() -> listOf(dek, "The free NewsData.io tier only provides a summary for this story — open the full article at the source to keep reading.")
+            else -> listOf("Full story available at the source.")
+        }
+
+        val wordCount = (bodyText ?: dek).split(Regex("\\s+")).size
+        val minutes = max(1, min(12, wordCount / 200))
+
+        val (start, end) = gradientFor(articleId)
+
+        return Article(
+            id = articleId,
+            category = categoryLabel,
+            title = safeTitle,
+            dek = dek,
+            author = creator?.firstOrNull()?.trim()?.takeIf { it.isNotBlank() && it != "null" } ?: "Staff",
+            sourceName = sourceName ?: sourceId ?: "Unknown source",
+            timeAgo = relativeTime(publishedAtMillis),
+            readTime = "$minutes min read",
+            publishedAtMillis = publishedAtMillis,
+            imageUrl = imageUrl,
+            articleUrl = link,
+            isHero = isHero,
+            thumbColorStart = start,
+            thumbColorEnd = end,
+            body = body
+        )
+    }
+
+    private fun gradientFor(seed: String): Pair<Color, Color> {
+        val palettes = listOf(
+            Color(0xFF3A3D44) to Color(0xFF1B1D21),
+            Color(0xFF3A2A2C) to Color(0xFF1A1214),
+            Color(0xFF2A3A2E) to Color(0xFF12181B),
+            Color(0xFF2E3550) to Color(0xFF14161C),
+            Color(0xFF453522) to Color(0xFF1A1610)
+        )
+        val idx = (seed.hashCode().let { if (it < 0) -it else it }) % palettes.size
+        return palettes[idx]
+    }
+
+    private fun relativeTime(publishedAtMillis: Long): String {
+        val diffMs = System.currentTimeMillis() - publishedAtMillis
+        val minutes = diffMs / 60000
+        return when {
+            minutes < 1 -> "just now"
+            minutes < 60 -> "${minutes}m ago"
+            minutes < 60 * 24 -> "${minutes / 60}h ago"
+            else -> "${minutes / (60 * 24)}d ago"
+        }
+    }
+
+    // ---- Sample fallback (no API key configured) ----
+
+    private fun sampleArticles(category: String?): List<Article> {
+        val now = System.currentTimeMillis()
+        val all = listOf(
+            Article(
+                id = "sample-1",
+                category = "Investigation",
+                title = "Inside the shipping delays reshaping global retail",
+                dek = "Ports from Rotterdam to Long Beach face a backlog that traces back to a single canal closure — and retailers are quietly rewriting their sourcing playbooks.",
+                author = "Priya Shah",
+                sourceName = "Sample data",
+                timeAgo = "12m ago",
+                readTime = "6 min read",
+                publishedAtMillis = now - 12 * 60_000,
+                isHero = true,
+                thumbColorStart = Color(0xFF3A3D44),
+                thumbColorEnd = Color(0xFF1B1D21),
+                caption = "A container ship idles outside the Port of Rotterdam.",
+                body = listOf(
+                    "This is sample content shown because no NEWSDATA_API_KEY is configured. Add a free key from newsdata.io to see real, live articles here instead.",
+                    "Retailers who once prized just-in-time delivery are now paying a premium for redundancy — warehousing closer to demand, diversified shipping lanes, and contracts that price in delay as the default, not the exception."
+                )
+            ),
+            Article(
+                id = "sample-2",
+                category = "Technology",
+                title = "Chipmakers race to shrink the next process node",
+                dek = "Sample story — connect a real API key to replace this with live technology headlines.",
+                author = "Staff",
+                sourceName = "Sample data",
+                timeAgo = "40m ago",
+                readTime = "4 min read",
+                publishedAtMillis = now - 40 * 60_000,
+                thumbColorStart = Color(0xFF2E3550),
+                thumbColorEnd = Color(0xFF14161C),
+                body = listOf("This is placeholder sample content. Configure NEWSDATA_API_KEY to load real technology news.")
+            ),
+            Article(
+                id = "sample-3",
+                category = "World",
+                title = "Coastal cities test new flood barrier design ahead of monsoon",
+                dek = "Sample story — connect a real API key to replace this with live world headlines.",
+                author = "Staff",
+                sourceName = "Sample data",
+                timeAgo = "1h ago",
+                readTime = "5 min read",
+                publishedAtMillis = now - 60 * 60_000,
+                thumbColorStart = Color(0xFF2A3A2E),
+                thumbColorEnd = Color(0xFF12181B),
+                body = listOf("This is placeholder sample content. Configure NEWSDATA_API_KEY to load real world news.")
+            )
+        )
+        if (category == null || category == "top") return all
+        return all.filter { it.category.equals(category, ignoreCase = true) }.ifEmpty { all }
+    }
 }

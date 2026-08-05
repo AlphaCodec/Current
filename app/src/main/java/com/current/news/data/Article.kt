@@ -3,7 +3,10 @@ package com.current.news.data
 import androidx.compose.ui.graphics.Color
 
 /**
- * Core content model for a single story.
+ * Core content model for a single story. Populated either from the
+ * NewsData.io API (see NewsRepository) or, when no API key is configured
+ * or the network call fails, from a small bundled sample set so the app
+ * still runs and demonstrates its UI.
  */
 data class Article(
     val id: String,
@@ -11,9 +14,12 @@ data class Article(
     val title: String,
     val dek: String,
     val author: String,
+    val sourceName: String,
     val timeAgo: String,
     val readTime: String,
-    val isLive: Boolean = false,
+    val publishedAtMillis: Long,
+    val imageUrl: String? = null,
+    val articleUrl: String? = null,
     val isHero: Boolean = false,
     val thumbColorStart: Color,
     val thumbColorEnd: Color,
@@ -30,6 +36,7 @@ data class Writer(
 data class Topic(
     val id: String,
     val label: String,
+    val apiCategory: String,
     val colorStart: Color,
     val colorEnd: Color
 )

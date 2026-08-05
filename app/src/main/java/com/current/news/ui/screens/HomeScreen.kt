@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,9 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.current.news.data.Article
 import com.current.news.ui.components.Pill
 import com.current.news.ui.components.SectionLabel
@@ -69,6 +72,18 @@ fun HomeScreen(
             Spacer(Modifier.height(18.dp))
         }
 
+        if (state.usingSampleData) {
+            item {
+                Text(
+                    "Showing sample data — add a free NEWSDATA_API_KEY to load real news. See README.",
+                    fontFamily = MonoFont,
+                    fontSize = 9.5.sp,
+                    color = colors.gold,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+            }
+        }
+
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(state.editions) { edition ->
@@ -80,30 +95,48 @@ fun HomeScreen(
             Spacer(Modifier.height(18.dp))
         }
 
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(colors.redDim)
-                    .border(1.dp, colors.red.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    Modifier
-                        .size(7.dp)
-                        .clip(CircleShape)
-                        .background(colors.red)
-                )
-                Spacer(Modifier.width(8.dp))
-                Column {
-                    Text("LIVE NOW", fontFamily = MonoFont, fontSize = 9.5.sp, letterSpacing = 0.6.sp, color = colors.red)
-                    Spacer(Modifier.height(2.dp))
-                    Text(state.liveHeadline, fontFamily = BodyFont, fontSize = 12.sp, color = colors.redDimText, fontWeight = FontWeight.Medium)
+        if (state.isLoading && state.stories.isEmpty()) {
+            item {
+                Box(Modifier.fillMaxWidth().padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = colors.red, modifier = Modifier.size(28.dp))
                 }
             }
-            Spacer(Modifier.height(20.dp))
+            return@LazyColumn
+        }
+
+        if (state.error != null && state.stories.isEmpty()) {
+            item {
+                ErrorState(message = state.error!!, onRetry = { viewModel.retryHome() })
+            }
+            return@LazyColumn
+        }
+
+        state.justInHeadline?.let { headline ->
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(colors.redDim)
+                        .border(1.dp, colors.red.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(colors.red)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text("JUST IN", fontFamily = MonoFont, fontSize = 9.5.sp, letterSpacing = 0.6.sp, color = colors.red)
+                        Spacer(Modifier.height(2.dp))
+                        Text(headline, fontFamily = BodyFont, fontSize = 12.sp, color = colors.redDimText, fontWeight = FontWeight.Medium, maxLines = 2)
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+            }
         }
 
         state.hero?.let { hero ->
@@ -125,6 +158,32 @@ fun HomeScreen(
 }
 
 @Composable
+private fun ErrorState(message: String, onRetry: () -> Unit) {
+    val colors = LocalAppColors.current
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Couldn't load news", fontFamily = DisplayFont, fontSize = 16.sp, color = colors.textHi)
+        Spacer(Modifier.height(6.dp))
+        Text(message, fontFamily = BodyFont, fontSize = 12.5.sp, color = colors.textMid)
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "RETRY",
+            fontFamily = MonoFont,
+            fontSize = 11.sp,
+            letterSpacing = 0.6.sp,
+            color = colors.red,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, colors.red, RoundedCornerShape(8.dp))
+                .clickable { onRetry() }
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+    }
+}
+
+@Composable
 private fun HeroCard(article: Article, onClick: () -> Unit) {
     val colors = LocalAppColors.current
     Box(
@@ -132,9 +191,23 @@ private fun HeroCard(article: Article, onClick: () -> Unit) {
             .fillMaxWidth()
             .height(210.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF2B2F36), Color(0xFF14161A))))
+            .background(Brush.linearGradient(listOf(article.thumbColorStart, article.thumbColorEnd)))
             .clickable { onClick() }
     ) {
+        if (!article.imageUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = article.imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        // Scrim so the headline stays legible over a photographic image.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))))
+        )
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -148,14 +221,15 @@ private fun HeroCard(article: Article, onClick: () -> Unit) {
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 22.sp,
                 lineHeight = 26.sp,
-                color = Color.White
+                color = Color.White,
+                maxLines = 3
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                "${article.author} · ${article.readTime} · ${article.timeAgo}",
+                "${article.sourceName} · ${article.readTime} · ${article.timeAgo}",
                 fontFamily = MonoFont,
                 fontSize = 10.5.sp,
-                color = Color.White.copy(alpha = 0.55f)
+                color = Color.White.copy(alpha = 0.65f)
             )
         }
     }

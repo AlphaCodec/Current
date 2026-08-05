@@ -27,9 +27,13 @@ jobs:
           gradle-version: '8.9'
 
       - name: Build debug APK
+        env:
+          NEWSDATA_API_KEY: ${{ secrets.NEWSDATA_API_KEY }}
         run: gradle assembleDebug --no-daemon
 
       - name: Build release APK (unsigned)
+        env:
+          NEWSDATA_API_KEY: ${{ secrets.NEWSDATA_API_KEY }}
         run: gradle assembleRelease --no-daemon
 
       - name: Upload debug APK

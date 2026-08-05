@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -86,16 +87,21 @@ fun SearchScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+                if (state.isLoading) {
+                    CircularProgressIndicator(color = colors.red, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                }
             }
             Spacer(Modifier.height(8.dp))
 
-            Text(
-                text = "${state.results.size} results · sorted by relevance",
-                fontFamily = MonoFont,
-                fontSize = 10.5.sp,
-                color = colors.textLo,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+            if (state.query.isNotBlank() && state.error == null) {
+                Text(
+                    text = "${state.results.size} results · sorted by relevance",
+                    fontFamily = MonoFont,
+                    fontSize = 10.5.sp,
+                    color = colors.textLo,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
 
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(viewModel.searchFilters) { filter ->
@@ -107,7 +113,17 @@ fun SearchScreen(
             Spacer(Modifier.height(10.dp))
         }
 
-        if (state.query.isNotBlank() && state.results.isEmpty()) {
+        if (state.error != null) {
+            item {
+                Text(
+                    state.error!!,
+                    fontFamily = BodyFont,
+                    fontSize = 13.sp,
+                    color = colors.textMid,
+                    modifier = Modifier.padding(vertical = 24.dp)
+                )
+            }
+        } else if (state.query.isNotBlank() && !state.isLoading && state.results.isEmpty()) {
             item {
                 Text(
                     "No stories match \"${state.query}\". Try a different keyword.",
