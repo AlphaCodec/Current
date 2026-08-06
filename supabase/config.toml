@@ -1,8 +1,0 @@
-# If you already have a supabase/config.toml from `supabase init`, just
-# merge this section into it instead of overwriting the file.
-
-[functions.news-proxy]
-# No auth required — this function only proxies public news data, and
-# requiring the Supabase anon key here would just be another credential
-# the Android app has to carry for no real benefit.
-verify_jwt = false

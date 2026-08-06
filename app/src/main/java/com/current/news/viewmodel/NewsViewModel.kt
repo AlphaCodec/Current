@@ -48,17 +48,36 @@ class NewsViewModel : ViewModel() {
     /**
      * NewsData.io's free-tier `/latest` pagination is a moving window, not a
      * stable cursor — as new articles publish, a `nextPage` fetch can hand
-     * back an article you already have. We de-dupe by id every time we
-     * combine a new page with an existing list, keeping first-seen order.
+     * back an article you already have, so we always dedupe by id. But the
+     * more common source of visible duplicates is different: the same wire
+     * story (AP/Reuters/etc.) gets syndicated by multiple outlets with
+     * different `article_id`s but the same or near-identical headline. So we
+     * also dedupe on a normalized title — first-seen wins.
      */
     private fun List<Article>.dedupedBy(existing: List<Article> = emptyList()): List<Article> {
-        val seen = LinkedHashSet<String>()
+        val seenIds = HashSet<String>()
+        val seenTitles = HashSet<String>()
         val result = ArrayList<Article>()
         for (a in existing + this) {
-            if (seen.add(a.id)) result.add(a)
+            val titleKey = normalizeTitle(a.title)
+            // Only let a normalized title collide with itself if it's long/specific
+            // enough to be meaningful — short generic titles ("Live updates") could
+            // otherwise false-positive against unrelated stories.
+            val isDuplicate = a.id in seenIds || (titleKey.length >= 15 && titleKey in seenTitles)
+            if (!isDuplicate) {
+                seenIds.add(a.id)
+                seenTitles.add(titleKey)
+                result.add(a)
+            }
         }
         return result
     }
+
+    private fun normalizeTitle(title: String): String =
+        title.lowercase()
+            .replace(Regex("[^a-z0-9\\s]"), "") // strip punctuation so "Fed holds rates." == "Fed holds rates"
+            .replace(Regex("\\s+"), " ")
+            .trim()
 
     // ---- Feed ----
     private val _homeState = MutableStateFlow(HomeUiState())
