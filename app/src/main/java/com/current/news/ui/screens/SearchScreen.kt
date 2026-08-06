@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -28,6 +29,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.current.news.ui.components.GhostChip
 import com.current.news.ui.components.StoryRow
+import com.current.news.ui.components.InfiniteScrollHandler
+import com.current.news.ui.components.LoadingMoreFooter
+import com.current.news.ui.components.LoadMoreErrorFooter
 import com.current.news.ui.theme.*
 import com.current.news.viewmodel.NewsViewModel
 
@@ -39,8 +43,12 @@ fun SearchScreen(
 ) {
     val state by viewModel.searchState.collectAsState()
     val colors = LocalAppColors.current
+    val listState = rememberLazyListState()
+
+    InfiniteScrollHandler(listState = listState) { viewModel.loadMoreSearch() }
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .background(colors.background)
@@ -135,8 +143,16 @@ fun SearchScreen(
             }
         }
 
-        items(state.results) { article ->
+        items(state.results, key = { it.id }) { article ->
             StoryRow(article) { onOpenArticle(article.id) }
+        }
+
+        if (state.isLoadingMore) {
+            item { LoadingMoreFooter() }
+        } else if (state.loadMoreError != null) {
+            item {
+                LoadMoreErrorFooter(message = state.loadMoreError!!) { viewModel.loadMoreSearch() }
+            }
         }
     }
 }

@@ -15,6 +15,11 @@ sealed class RepoResult<out T> {
     data class Error(val message: String) : RepoResult<Nothing>()
 }
 
+data class ArticlesPage(
+    val articles: List<Article>,
+    val nextPageToken: String?
+)
+
 /**
  * Talks to the NewsData.io free API (see network/NewsDataApi.kt). If no API
  * key is configured, or the request fails (offline, rate limit, etc.), this
@@ -43,24 +48,31 @@ object NewsRepository {
 
     val hasApiKey: Boolean get() = BuildConfig.NEWSDATA_API_KEY.isNotBlank()
 
-    suspend fun fetchArticles(category: String? = null, query: String? = null): RepoResult<List<Article>> {
+    suspend fun fetchArticles(
+        category: String? = null,
+        query: String? = null,
+        page: String? = null
+    ): RepoResult<ArticlesPage> {
         if (!hasApiKey) {
-            return RepoResult.Success(sampleArticles(category))
+            // Sample data doesn't paginate — one page, no nextPageToken.
+            return RepoResult.Success(ArticlesPage(sampleArticles(category), nextPageToken = null))
         }
         return try {
             val response = NewsDataClient.api.getLatest(
                 apiKey = BuildConfig.NEWSDATA_API_KEY,
                 category = category,
-                query = query
+                query = query,
+                page = page
             )
             if (response.status == "success") {
                 val mapped = response.results.orEmpty().mapIndexedNotNull { index, dto ->
-                    dto.toArticle(isHero = index == 0)
+                    // Only the very first page's first article is treated as "hero".
+                    dto.toArticle(isHero = page == null && index == 0)
                 }
-                if (mapped.isEmpty()) {
+                if (mapped.isEmpty() && page == null) {
                     RepoResult.Error("No results found.")
                 } else {
-                    RepoResult.Success(mapped)
+                    RepoResult.Success(ArticlesPage(mapped, response.nextPage))
                 }
             } else {
                 RepoResult.Error(response.results_message ?: "The news service returned an error.")
@@ -109,7 +121,7 @@ object NewsRepository {
         val bodyText = content?.trim()?.takeIf { it.isNotBlank() && it != "ONLY AVAILABLE IN PAID PLANS" }
         val body = when {
             bodyText != null -> bodyText.split(Regex("\n+")).filter { it.isNotBlank() }
-            dek.isNotBlank() -> listOf(dek, "The free NewsData.io tier only provides a summary for this story — open the full article at the source to keep reading.")
+            dek.isNotBlank() -> listOf(dek, "The free NewsData.io tier only provides a summary for this story. Tap \"Read full story\" below to keep reading without leaving the app.")
             else -> listOf("Full story available at the source.")
         }
 

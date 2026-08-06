@@ -20,6 +20,9 @@ data class HomeUiState(
     val hero: Article? = null,
     val stories: List<Article> = emptyList(),
     val isLoading: Boolean = true,
+    val isLoadingMore: Boolean = false,
+    val canLoadMore: Boolean = false,
+    val loadMoreError: String? = null,
     val error: String? = null,
     val usingSampleData: Boolean = !NewsRepository.hasApiKey
 )
@@ -29,18 +32,39 @@ data class SearchUiState(
     val activeFilter: String = "All",
     val results: List<Article> = emptyList(),
     val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val canLoadMore: Boolean = false,
+    val loadMoreError: String? = null,
     val error: String? = null
 )
 
 class NewsViewModel : ViewModel() {
 
     // Every article the app has seen this session, keyed by id — lets the
-    // article reader look up a story without a dedicated "get by id" call.
+    // article reader look up a story without a dedicated "get by id" call,
+    // and also doubles as our source of truth for de-duplication.
     private val articleCache = HashMap<String, Article>()
+
+    /**
+     * NewsData.io's free-tier `/latest` pagination is a moving window, not a
+     * stable cursor — as new articles publish, a `nextPage` fetch can hand
+     * back an article you already have. We de-dupe by id every time we
+     * combine a new page with an existing list, keeping first-seen order.
+     */
+    private fun List<Article>.dedupedBy(existing: List<Article> = emptyList()): List<Article> {
+        val seen = LinkedHashSet<String>()
+        val result = ArrayList<Article>()
+        for (a in existing + this) {
+            if (seen.add(a.id)) result.add(a)
+        }
+        return result
+    }
 
     // ---- Feed ----
     private val _homeState = MutableStateFlow(HomeUiState())
     val homeState: StateFlow<HomeUiState> = _homeState.asStateFlow()
+    private var homeNextPage: String? = null
+    private var homeCategory: String? = null
 
     init {
         loadEdition("For you")
@@ -55,13 +79,27 @@ class NewsViewModel : ViewModel() {
 
     private fun loadEdition(edition: String) {
         val categoryQuery = NewsRepository.editions.firstOrNull { it.first == edition }?.second
-        _homeState.update { it.copy(selectedEdition = edition, isLoading = true, error = null) }
+        homeCategory = categoryQuery
+        homeNextPage = null
+        _homeState.update {
+            it.copy(
+                selectedEdition = edition,
+                isLoading = true,
+                isLoadingMore = false,
+                canLoadMore = false,
+                loadMoreError = null,
+                error = null
+            )
+        }
         viewModelScope.launch {
             when (val result = NewsRepository.fetchArticles(category = categoryQuery)) {
                 is RepoResult.Success -> {
-                    result.data.forEach { articleCache[it.id] = it }
-                    val hero = result.data.firstOrNull { it.isHero } ?: result.data.firstOrNull()
-                    val rest = result.data.filterNot { it.id == hero?.id }
+                    val page = result.data
+                    val deduped = page.articles.dedupedBy()
+                    deduped.forEach { articleCache[it.id] = it }
+                    homeNextPage = page.nextPageToken
+                    val hero = deduped.firstOrNull { it.isHero } ?: deduped.firstOrNull()
+                    val rest = deduped.filterNot { it.id == hero?.id }
                     _homeState.update {
                         it.copy(
                             isLoading = false,
@@ -69,6 +107,7 @@ class NewsViewModel : ViewModel() {
                             hero = hero,
                             justInHeadline = rest.firstOrNull()?.title ?: hero?.title,
                             stories = rest,
+                            canLoadMore = homeNextPage != null,
                             usingSampleData = !NewsRepository.hasApiKey
                         )
                     }
@@ -80,18 +119,54 @@ class NewsViewModel : ViewModel() {
         }
     }
 
+    /** Called when the home feed scrolls near the bottom. Safe to call repeatedly. */
+    fun loadMoreHome() {
+        val state = _homeState.value
+        if (state.isLoading || state.isLoadingMore || !state.canLoadMore) return
+        val nextPage = homeNextPage ?: return
+
+        _homeState.update { it.copy(isLoadingMore = true, loadMoreError = null) }
+        viewModelScope.launch {
+            when (val result = NewsRepository.fetchArticles(category = homeCategory, page = nextPage)) {
+                is RepoResult.Success -> {
+                    val page = result.data
+                    page.articles.forEach { articleCache[it.id] = it }
+                    homeNextPage = page.nextPageToken
+                    _homeState.update { current ->
+                        val combined = page.articles.dedupedBy(existing = listOfNotNull(current.hero) + current.stories)
+                        val hero = current.hero ?: combined.firstOrNull()
+                        current.copy(
+                            isLoadingMore = false,
+                            loadMoreError = null,
+                            stories = combined.filterNot { it.id == hero?.id },
+                            canLoadMore = homeNextPage != null
+                        )
+                    }
+                }
+                is RepoResult.Error -> {
+                    // Keep canLoadMore as-is so the retry affordance below stays
+                    // visible and a subsequent tap/scroll can try again.
+                    _homeState.update { it.copy(isLoadingMore = false, loadMoreError = result.message) }
+                }
+            }
+        }
+    }
+
     // ---- Search ----
     private val _searchState = MutableStateFlow(SearchUiState())
     val searchState: StateFlow<SearchUiState> = _searchState.asStateFlow()
     val searchFilters: List<String> = listOf("All", "Articles", "Opinion")
 
     private var searchJob: Job? = null
+    private var searchNextPage: String? = null
 
     fun updateQuery(query: String) {
         _searchState.update { it.copy(query = query) }
         searchJob?.cancel()
         if (query.isBlank()) {
-            _searchState.update { it.copy(results = emptyList(), isLoading = false, error = null) }
+            _searchState.update {
+                it.copy(results = emptyList(), isLoading = false, canLoadMore = false, loadMoreError = null, error = null)
+            }
             return
         }
         searchJob = viewModelScope.launch {
@@ -108,21 +183,65 @@ class NewsViewModel : ViewModel() {
     }
 
     private suspend fun runSearch(query: String) {
-        _searchState.update { it.copy(isLoading = true, error = null) }
+        searchNextPage = null
+        _searchState.update { it.copy(isLoading = true, loadMoreError = null, error = null) }
         when (val result = NewsRepository.fetchArticles(query = query)) {
             is RepoResult.Success -> {
-                result.data.forEach { articleCache[it.id] = it }
-                val filtered = when (_searchState.value.activeFilter) {
-                    "Opinion" -> result.data.filter { it.category.equals("Opinion", ignoreCase = true) }
-                    "Articles" -> result.data.filterNot { it.category.equals("Opinion", ignoreCase = true) }
-                    else -> result.data
+                val page = result.data
+                val deduped = page.articles.dedupedBy()
+                deduped.forEach { articleCache[it.id] = it }
+                searchNextPage = page.nextPageToken
+                val filtered = applyFilter(deduped, _searchState.value.activeFilter)
+                _searchState.update {
+                    it.copy(
+                        isLoading = false,
+                        results = filtered,
+                        canLoadMore = searchNextPage != null,
+                        error = null
+                    )
                 }
-                _searchState.update { it.copy(isLoading = false, results = filtered, error = null) }
             }
             is RepoResult.Error -> {
                 _searchState.update { it.copy(isLoading = false, error = result.message) }
             }
         }
+    }
+
+    /** Called when the search results list scrolls near the bottom. */
+    fun loadMoreSearch() {
+        val state = _searchState.value
+        if (state.isLoading || state.isLoadingMore || !state.canLoadMore || state.query.isBlank()) return
+        val nextPage = searchNextPage ?: return
+
+        _searchState.update { it.copy(isLoadingMore = true, loadMoreError = null) }
+        viewModelScope.launch {
+            when (val result = NewsRepository.fetchArticles(query = state.query, page = nextPage)) {
+                is RepoResult.Success -> {
+                    val page = result.data
+                    page.articles.forEach { articleCache[it.id] = it }
+                    searchNextPage = page.nextPageToken
+                    _searchState.update { current ->
+                        val combined = page.articles.dedupedBy(existing = current.results)
+                        val filtered = applyFilter(combined, current.activeFilter)
+                        current.copy(
+                            isLoadingMore = false,
+                            loadMoreError = null,
+                            results = filtered,
+                            canLoadMore = searchNextPage != null
+                        )
+                    }
+                }
+                is RepoResult.Error -> {
+                    _searchState.update { it.copy(isLoadingMore = false, loadMoreError = result.message) }
+                }
+            }
+        }
+    }
+
+    private fun applyFilter(list: List<Article>, filter: String): List<Article> = when (filter) {
+        "Opinion" -> list.filter { it.category.equals("Opinion", ignoreCase = true) }
+        "Articles" -> list.filterNot { it.category.equals("Opinion", ignoreCase = true) }
+        else -> list
     }
 
     // ---- Bookmarks (in-memory for this session) ----

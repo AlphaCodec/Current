@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,9 +16,15 @@ import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +43,74 @@ enum class AppTab(val route: String, val label: String) {
     Explore("explore", "Explore"),
     Saved("saved", "Saved"),
     Profile("profile", "Profile")
+}
+
+/**
+ * Watches [listState] and calls [onLoadMore] whenever the user is scrolled
+ * to within [buffer] items of the end of the list. Drop this inside any
+ * screen alongside its LazyColumn; it renders nothing itself.
+ *
+ * Deliberately does NOT de-duplicate consecutive "at the bottom" signals:
+ * if a previous load-more attempt failed, we still want a later scroll
+ * event near the bottom to try again rather than latching permanently.
+ * The real duplicate-call guard lives in the ViewModel (isLoading /
+ * isLoadingMore / canLoadMore checks), which is cheap to call redundantly.
+ */
+@Composable
+fun InfiniteScrollHandler(
+    listState: LazyListState,
+    buffer: Int = 4,
+    onLoadMore: () -> Unit
+) {
+    val shouldLoadMore = remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            totalItems > 0 && lastVisibleIndex >= totalItems - 1 - buffer
+        }
+    }
+    LaunchedEffect(listState) {
+        snapshotFlow { shouldLoadMore.value }
+            .collect { atEnd -> if (atEnd) onLoadMore() }
+    }
+}
+
+/** Small footer row shown at the bottom of an infinite-scroll list while more results load. */
+@Composable
+fun LoadingMoreFooter() {
+    val colors = LocalAppColors.current
+    Box(
+        Modifier.fillMaxWidth().padding(vertical = 20.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(color = colors.red, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** Footer shown when a load-more request failed — explicit, tappable retry. */
+@Composable
+fun LoadMoreErrorFooter(message: String, onRetry: () -> Unit) {
+    val colors = LocalAppColors.current
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(message, fontFamily = BodyFont, fontSize = 11.5.sp, color = colors.textMid, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "TAP TO RETRY",
+            fontFamily = MonoFont,
+            fontSize = 10.sp,
+            letterSpacing = 0.5.sp,
+            color = colors.red,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, colors.red, RoundedCornerShape(8.dp))
+                .clickable { onRetry() }
+                .padding(horizontal = 14.dp, vertical = 7.dp)
+        )
+    }
 }
 
 @Composable

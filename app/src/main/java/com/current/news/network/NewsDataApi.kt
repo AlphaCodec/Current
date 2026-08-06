@@ -18,7 +18,8 @@ interface NewsDataApi {
         @Query("category") category: String? = null,
         @Query("q") query: String? = null,
         @Query("language") language: String = "en",
-        @Query("image") image: String = "1" // only return articles that have an image
+        @Query("image") image: String = "1", // only return articles that have an image
+        @Query("page") page: String? = null // pagination token from a previous response's nextPage
     ): NewsDataResponse
 
     companion object {

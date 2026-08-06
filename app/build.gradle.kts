@@ -86,6 +86,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.2")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.browser:browser:1.8.0")
 
     // Networking — talks to the NewsData.io REST API
     implementation("com.squareup.retrofit2:retrofit:2.11.0")

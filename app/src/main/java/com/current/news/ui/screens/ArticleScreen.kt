@@ -29,6 +29,8 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.browser.customtabs.CustomTabColorSchemeParams
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -155,11 +157,14 @@ fun ArticleScreen(
                         color = Red,
                         modifier = Modifier
                             .clickable {
-                                val intent = android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse(article.articleUrl)
-                                )
-                                context.startActivity(intent)
+                                val colorParams = CustomTabColorSchemeParams.Builder()
+                                    .setToolbarColor(android.graphics.Color.parseColor("#F7F3EC")) // Paper
+                                    .build()
+                                val customTabsIntent = CustomTabsIntent.Builder()
+                                    .setDefaultColorSchemeParams(colorParams)
+                                    .setShowTitle(true)
+                                    .build()
+                                customTabsIntent.launchUrl(context, android.net.Uri.parse(article.articleUrl))
                             }
                             .padding(vertical = 12.dp)
                     )

@@ -16,12 +16,22 @@ carried through into the UI:
 - No true real-time/breaking feed — there's a delay, so the app labels
   its top-of-feed banner "Just in" rather than "Live", and there is no
   fabricated live indicator.
-- Only a description/summary is returned, not full article bodies — the
-  reader shows the summary plus a "Read full story at [source] →" link
-  that opens the original article in the browser.
-- 200 requests/day. The app doesn't poll or auto-refresh; it fetches on
-  tab open / edition change / search, which is enough for normal use but
-  will exhaust quickly under heavy testing.
+- Only a description/summary is returned, not full article bodies — this
+  is a hard limit of the free tier (the `full_content` parameter exists
+  but is paid-plan-only; the free tier ignores it). The reader shows the
+  summary plus a **"Read full story at [source] →"** link that opens the
+  real article in a Chrome Custom Tab — an in-app browser sheet, not a
+  separate app — so reading feels continuous even though the text itself
+  comes from the publisher's own page. (Scraping and re-displaying full
+  article bodies from arbitrary sites would sidestep publishers'
+  ads/paywalls and their terms of service, so this app doesn't do that;
+  the Custom Tab approach is what most legitimate news readers do.)
+- 200 requests/day. The app doesn't poll or auto-refresh, but **infinite
+  scroll does mean scrolling through a long feed spends credits faster**
+  than the previous single-page version — each additional page pulled in
+  is one more request. Reaching the end of a feed ("You're all caught
+  up") or a burst of scrolling can realistically use 5-15 credits in one
+  session.
 
 **If no API key is configured, the app runs on a small bundled sample
 data set** instead of crashing, with a banner explaining how to add one.
@@ -41,15 +51,16 @@ data is opt-in.
 
 - **Home feed** — editions filter row mapped to real NewsData.io
   categories, a "Just in" banner, hero story with a real photo, ranked
-  story list
+  story list with **infinite scroll** (loads the next page automatically
+  as you near the bottom, via NewsData.io's `nextPage` token)
 - **Article reader** — paper reading surface, drop-cap opening
   paragraph, real thumbnail, scroll progress indicator, save/share
-  (real Android share sheet)/listen toolbar, "read full story" link out
-  to the original source
+  (real Android share sheet)/listen toolbar, "Read full story" link that
+  opens the source in a Chrome Custom Tab (in-app browser sheet)
 - **Explore** — topic tiles that browse real categories, a "writers in
   today's feed" row derived from actual bylines in the current feed
 - **Search** — live query against the API (debounced), Articles/Opinion
-  filters
+  filters, infinite scroll on results
 - **Saved** — bookmarking of full articles, persisted for the session,
   with an empty state
 - **Profile** — account shell + a working **Appearance** setting
@@ -130,8 +141,10 @@ out of the box without any secrets configured.
   restarts (currently session-only, called out above)
 - Add pull-to-refresh on the home feed
 - Add pagination using `nextPage` from the NewsData.io response
-- If the free tier's 200 requests/day becomes limiting, either cache
-  responses locally with a TTL, or upgrade to a paid tier — the
-  repository layer is already isolated so this is a one-file change
+- Cache responses per-edition in memory during a session to cut down on
+  redundant requests against the 200/day free quota
+- If full in-app article text matters more than staying free, NewsData.io's
+  paid Basic plan ($199.99/mo) unlocks `full_content=1` — swap that one
+  query param in `NewsDataApi.kt` and the reader UI needs no changes
 - Push notifications aren't feasible on the free tier (no real
   breaking-news webhook) without a paid plan or a different provider

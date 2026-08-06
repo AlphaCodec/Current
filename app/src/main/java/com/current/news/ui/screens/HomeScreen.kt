@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,9 @@ import com.current.news.data.Article
 import com.current.news.ui.components.Pill
 import com.current.news.ui.components.SectionLabel
 import com.current.news.ui.components.StoryRow
+import com.current.news.ui.components.InfiniteScrollHandler
+import com.current.news.ui.components.LoadingMoreFooter
+import com.current.news.ui.components.LoadMoreErrorFooter
 import com.current.news.ui.theme.*
 import com.current.news.viewmodel.NewsViewModel
 
@@ -41,8 +45,12 @@ fun HomeScreen(
 ) {
     val state by viewModel.homeState.collectAsState()
     val colors = LocalAppColors.current
+    val listState = rememberLazyListState()
+
+    InfiniteScrollHandler(listState = listState) { viewModel.loadMoreHome() }
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .background(colors.background)
@@ -151,8 +159,27 @@ fun HomeScreen(
             Spacer(Modifier.height(4.dp))
         }
 
-        items(state.stories) { article ->
+        items(state.stories, key = { it.id }) { article ->
             StoryRow(article) { onOpenArticle(article.id) }
+        }
+
+        if (state.isLoadingMore) {
+            item { LoadingMoreFooter() }
+        } else if (state.loadMoreError != null) {
+            item {
+                LoadMoreErrorFooter(message = state.loadMoreError!!) { viewModel.loadMoreHome() }
+            }
+        } else if (!state.canLoadMore && state.stories.isNotEmpty()) {
+            item {
+                Text(
+                    "You're all caught up",
+                    fontFamily = MonoFont,
+                    fontSize = 10.5.sp,
+                    color = colors.textLo,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
         }
     }
 }
