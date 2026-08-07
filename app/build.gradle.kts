@@ -97,6 +97,9 @@ dependencies {
     // Real article thumbnail loading
     implementation("io.coil-kt:coil-compose:2.7.0")
 
+    // Splash screen shown immediately on cold start, instead of a blank window
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 

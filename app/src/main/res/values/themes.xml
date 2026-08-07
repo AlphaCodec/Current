@@ -4,4 +4,17 @@
         <item name="android:navigationBarColor">#0B0B0C</item>
         <item name="android:windowBackground">#0B0B0C</item>
     </style>
+
+    <!--
+        Shown the instant the launcher icon is tapped, before the process has
+        even finished cold-starting — this is what removes the blank white/
+        black flash that made startup feel slow. System-rendered, effectively
+        free. Automatically swaps to Theme.Current once the first frame of
+        MainActivity is ready (see installSplashScreen() in MainActivity).
+    -->
+    <style name="Theme.Current.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0B0B0C</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.Current</item>
+    </style>
 </resources>

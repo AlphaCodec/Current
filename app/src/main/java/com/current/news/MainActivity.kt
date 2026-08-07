@@ -11,6 +11,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -22,6 +23,11 @@ import com.current.news.viewmodel.SettingsViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must be called before super.onCreate() — shows the launcher icon
+        // on a solid background immediately, covering the gap between the
+        // user tapping the icon and the process/Compose finishing cold
+        // start. It auto-dismisses once the first frame is drawn.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         hideSystemBars()

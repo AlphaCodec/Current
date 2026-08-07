@@ -68,6 +68,15 @@ data is opt-in.
 - Loading states, error states with retry, and graceful fallback to
   sample data — this is written the way a shipped app handles a flaky
   network, not a happy-path-only demo
+- **Android Splash Screen API** — the launcher icon shows immediately on
+  a solid background while the process cold-starts, instead of a blank
+  white/black flash, so the app *feels* faster to open even though the
+  underlying cold-start work is the same
+- **Bounded image cache** — Coil's default disk cache grows with device
+  storage (~2% of total, uncapped in practice) and never self-cleans;
+  this app supplies its own `ImageLoader` (see `CurrentApp.kt`) capped at
+  75MB disk / 15% of available RAM, plus a manual "Clear image cache"
+  row in Profile → Storage showing the current size
 - Bottom tab navigation (Home / Explore / Saved / Profile) built on
   Jetpack Navigation Compose
 - One shared `NewsViewModel` (StateFlow-based) driving feed, search,
@@ -148,3 +157,13 @@ out of the box without any secrets configured.
   query param in `NewsDataApi.kt` and the reader UI needs no changes
 - Push notifications aren't feasible on the free tier (no real
   breaking-news webhook) without a paid plan or a different provider
+- **On perceived vs. actual startup time**: the splash screen fixes the
+  "blank flash" perception issue, but the underlying cold-start work
+  (process init, Compose first composition, first network call) still
+  takes however long it takes. If startup is still slow after this
+  change, the next lever is enabling R2/R8 code shrinking on the release
+  build — not done here because it requires explicit ProGuard keep rules
+  for Gson's reflection-based parsing of the DTOs in `network/`, and
+  getting that wrong silently nulls out fields at runtime rather than
+  failing loudly. Worth doing carefully in a follow-up, not as a quick
+  toggle.
