@@ -14,7 +14,7 @@
     -->
     <style name="Theme.Current.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#0B0B0C</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
         <item name="postSplashScreenTheme">@style/Theme.Current</item>
     </style>
 </resources>
