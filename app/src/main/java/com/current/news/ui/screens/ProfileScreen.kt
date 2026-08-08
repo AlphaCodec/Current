@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -12,7 +14,7 @@ import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.TextFields
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
@@ -34,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.imageLoader
+import com.current.news.data.AVAILABLE_COUNTRIES
 import com.current.news.data.ThemeMode
 import com.current.news.ui.theme.*
 import com.current.news.viewmodel.SettingsViewModel
@@ -43,11 +46,16 @@ fun ProfileScreen(settingsViewModel: SettingsViewModel) {
     val colors = LocalAppColors.current
     val context = LocalContext.current
     val themeMode by settingsViewModel.themeMode.collectAsState()
+    val countryCode by settingsViewModel.countryCode.collectAsState()
     var showAppearanceDialog by remember { mutableStateOf(false) }
+    var showCountryDialog by remember { mutableStateOf(false) }
 
     // Bumped after clearing so the cache-size row recomputes below.
     var cacheClearTick by remember { mutableIntStateOf(0) }
     val cacheSizeLabel = remember(cacheClearTick) { formatCacheSize(context) }
+    val countryLabel = remember(countryCode) {
+        AVAILABLE_COUNTRIES.firstOrNull { it.code == countryCode }?.label ?: "Global"
+    }
 
     Column(
         modifier = Modifier
@@ -82,7 +90,12 @@ fun ProfileScreen(settingsViewModel: SettingsViewModel) {
             value = themeMode.label(),
             onClick = { showAppearanceDialog = true }
         )
-        SettingsRow(Icons.Outlined.TextFields, "Reading preferences", "") { }
+        SettingsRow(
+            icon = Icons.Outlined.Public,
+            label = "Reading preferences",
+            value = countryLabel,
+            onClick = { showCountryDialog = true }
+        )
 
         Spacer(Modifier.height(24.dp))
         Text("STORAGE", fontFamily = MonoFont, fontSize = 10.5.sp, letterSpacing = 1.sp, color = colors.textLo)
@@ -114,6 +127,17 @@ fun ProfileScreen(settingsViewModel: SettingsViewModel) {
             onSelect = { mode ->
                 settingsViewModel.setThemeMode(mode)
                 showAppearanceDialog = false
+            }
+        )
+    }
+
+    if (showCountryDialog) {
+        CountryDialog(
+            current = countryCode,
+            onDismiss = { showCountryDialog = false },
+            onSelect = { code ->
+                settingsViewModel.setCountry(code)
+                showCountryDialog = false
             }
         )
     }
@@ -171,6 +195,70 @@ private fun AppearanceDialog(
                         RadioButton(
                             selected = mode == current,
                             onClick = { onSelect(mode) },
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = colors.red,
+                                unselectedColor = colors.lineSoft
+                            )
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Text(
+                "Done",
+                fontFamily = MonoFont,
+                fontSize = 11.sp,
+                color = colors.red,
+                modifier = Modifier
+                    .clickable { onDismiss() }
+                    .padding(12.dp)
+            )
+        }
+    )
+}
+
+@Composable
+private fun CountryDialog(
+    current: String?,
+    onDismiss: () -> Unit,
+    onSelect: (String?) -> Unit
+) {
+    val colors = LocalAppColors.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.surface,
+        title = {
+            Column {
+                Text("Reading preferences", fontFamily = DisplayFont, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = colors.textHi)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Choose a country to prioritize its news on Home and World.",
+                    fontFamily = BodyFont,
+                    fontSize = 11.5.sp,
+                    color = colors.textMid
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                AVAILABLE_COUNTRIES.forEach { country ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(country.code) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(country.label, fontFamily = BodyFont, fontSize = 14.sp, color = colors.textHi)
+                        RadioButton(
+                            selected = country.code == current,
+                            onClick = { onSelect(country.code) },
                             colors = RadioButtonDefaults.colors(
                                 selectedColor = colors.red,
                                 unselectedColor = colors.lineSoft

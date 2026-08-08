@@ -22,4 +22,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             repository.setThemeMode(mode)
         }
     }
+
+    /** Null = Global (no country filter). */
+    val countryCode: StateFlow<String?> = repository.countryCode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    fun setCountry(code: String?) {
+        viewModelScope.launch {
+            repository.setCountry(code)
+        }
+    }
 }

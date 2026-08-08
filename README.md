@@ -57,8 +57,10 @@ data is opt-in.
   paragraph, real thumbnail, scroll progress indicator, save/share
   (real Android share sheet)/listen toolbar, "Read full story" link that
   opens the source in a Chrome Custom Tab (in-app browser sheet)
-- **Explore** — topic tiles that browse real categories, a "writers in
-  today's feed" row derived from actual bylines in the current feed
+- **World** — an unfiltered, chronological stream of everything the
+  source has (no category narrowing), with quick access to Search.
+  Deliberately *not* a re-skin of Home's category pills — replaces the
+  old Explore tab, which turned out to be mostly redundant with Home
 - **Search** — live query against the API (debounced), Articles/Opinion
   filters, infinite scroll on results
 - **Saved** — bookmarking of full articles, persisted for the session,
@@ -77,7 +79,11 @@ data is opt-in.
   this app supplies its own `ImageLoader` (see `CurrentApp.kt`) capped at
   75MB disk / 15% of available RAM, plus a manual "Clear image cache"
   row in Profile → Storage showing the current size
-- Bottom tab navigation (Home / Explore / Saved / Profile) built on
+- **Reading preferences → Country** — a Profile setting that filters
+  Home, World, and Search to a chosen country's news (or "Global" for
+  no filter), persisted with DataStore and applied via a `country`
+  query param on every request
+- Bottom tab navigation (Home / World / Saved / Profile) built on
   Jetpack Navigation Compose
 - One shared `NewsViewModel` (StateFlow-based) driving feed, search,
   and bookmarks, with an in-memory article cache so opening a story
@@ -97,7 +103,7 @@ app/src/main/java/com/current/news/
                        (light/dark chrome palette)
   ui/components/     Shared building blocks (story row w/ real images,
                        chips, bottom nav)
-  ui/screens/        HomeScreen, ArticleScreen, ExploreScreen,
+  ui/screens/        HomeScreen, ArticleScreen, WorldScreen,
                       SearchScreen, SavedScreen, ProfileScreen
   MainActivity.kt
 ```
@@ -157,6 +163,12 @@ out of the box without any secrets configured.
   query param in `NewsDataApi.kt` and the reader UI needs no changes
 - Push notifications aren't feasible on the free tier (no real
   breaking-news webhook) without a paid plan or a different provider
+- Minor known inefficiency: if a non-Global country is saved, cold
+  start currently fetches once with no filter (fast first paint) then
+  re-fetches once the persisted country loads from DataStore a moment
+  later — costs one extra request pair per cold start for those users.
+  Fixable by blocking the initial fetch on the DataStore read, at the
+  cost of a slightly slower first paint; left as a deliberate tradeoff.
 - **On perceived vs. actual startup time**: the splash screen fixes the
   "blank flash" perception issue, but the underlying cold-start work
   (process init, Compose first composition, first network call) still

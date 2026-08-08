@@ -39,22 +39,16 @@ object NewsRepository {
         "Culture" to "entertainment"
     )
 
-    val topics: List<Topic> = listOf(
-        Topic("world", "World", "world", Color(0xFF3A1F1C), Color(0xFF1A1210)),
-        Topic("climate", "Climate", "environment", Color(0xFF1F2A1C), Color(0xFF101A12)),
-        Topic("technology", "Technology", "technology", Color(0xFF1C2430), Color(0xFF10151C)),
-        Topic("culture", "Culture", "entertainment", Color(0xFF2C2417), Color(0xFF1A1610))
-    )
-
     val hasApiKey: Boolean get() = BuildConfig.NEWSDATA_API_KEY.isNotBlank()
 
     suspend fun fetchArticles(
         category: String? = null,
         query: String? = null,
+        country: String? = null,
         page: String? = null
     ): RepoResult<ArticlesPage> {
         if (!hasApiKey) {
-            // Sample data doesn't paginate — one page, no nextPageToken.
+            // Sample data doesn't paginate or filter by country — one page, no nextPageToken.
             return RepoResult.Success(ArticlesPage(sampleArticles(category), nextPageToken = null))
         }
         return try {
@@ -62,6 +56,7 @@ object NewsRepository {
                 apiKey = BuildConfig.NEWSDATA_API_KEY,
                 category = category,
                 query = query,
+                country = country,
                 page = page
             )
             if (response.status == "success") {
@@ -90,14 +85,6 @@ object NewsRepository {
             RepoResult.Error("Something went wrong loading news: ${e.message ?: "unknown error"}")
         }
     }
-
-    /** Derives a "writers" row from whatever articles are currently loaded. */
-    fun writersFrom(articles: List<Article>): List<Writer> =
-        articles
-            .filter { it.author.isNotBlank() && it.author != "Staff" }
-            .distinctBy { it.author }
-            .take(6)
-            .map { Writer(id = it.author, name = it.author, beat = it.sourceName) }
 
     // ---- Mapping ----
 

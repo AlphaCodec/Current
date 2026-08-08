@@ -9,13 +9,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.outlined.Bookmark
-import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -40,7 +40,7 @@ import com.current.news.ui.theme.*
 
 enum class AppTab(val route: String, val label: String) {
     Home("home", "Home"),
-    Explore("explore", "Explore"),
+    World("world", "World"),
     Saved("saved", "Saved"),
     Profile("profile", "Profile")
 }
@@ -136,7 +136,7 @@ fun BottomNavBar(current: AppTab, onSelect: (AppTab) -> Unit) {
             ) {
                 val icon = when (tab) {
                     AppTab.Home -> if (active) Icons.Filled.Home else Icons.Outlined.Home
-                    AppTab.Explore -> if (active) Icons.Filled.Explore else Icons.Outlined.Explore
+                    AppTab.World -> if (active) Icons.Filled.Public else Icons.Outlined.Public
                     AppTab.Saved -> if (active) Icons.Filled.Bookmark else Icons.Outlined.Bookmark
                     AppTab.Profile -> if (active) Icons.Filled.Person else Icons.Outlined.Person
                 }

@@ -14,13 +14,15 @@ enum class ThemeMode {
 private val Context.settingsDataStore by preferencesDataStore(name = "current_settings")
 
 /**
- * Persists the user's Appearance choice (Light / Dark / System) across app
- * restarts. Backed by Jetpack DataStore rather than SharedPreferences so
- * reads/writes are async and observable as a Flow.
+ * Persists the user's Appearance choice (Light / Dark / System) and reading
+ * preferences (country filter) across app restarts. Backed by Jetpack
+ * DataStore rather than SharedPreferences so reads/writes are async and
+ * observable as a Flow.
  */
 class SettingsRepository(private val context: Context) {
 
     private val themeModeKey = stringPreferencesKey("theme_mode")
+    private val countryCodeKey = stringPreferencesKey("country_code")
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
         when (prefs[themeModeKey]) {
@@ -33,6 +35,17 @@ class SettingsRepository(private val context: Context) {
     suspend fun setThemeMode(mode: ThemeMode) {
         context.settingsDataStore.edit { prefs ->
             prefs[themeModeKey] = mode.name
+        }
+    }
+
+    /** Null means "Global" — no country filter applied. */
+    val countryCode: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[countryCodeKey]
+    }
+
+    suspend fun setCountry(code: String?) {
+        context.settingsDataStore.edit { prefs ->
+            if (code == null) prefs.remove(countryCodeKey) else prefs[countryCodeKey] = code
         }
     }
 }
