@@ -80,9 +80,11 @@ data is opt-in.
   75MB disk / 15% of available RAM, plus a manual "Clear image cache"
   row in Profile → Storage showing the current size
 - **Reading preferences → Country** — a Profile setting that filters
-  Home, World, and Search to a chosen country's news (or "Global" for
-  no filter), persisted with DataStore and applied via a `country`
-  query param on every request
+  Home and Search to a chosen country's news (or "Global" for no
+  filter), persisted with DataStore. World is deliberately exempt — it's
+  the one screen meant to always show a genuinely unfiltered feed, so
+  applying the country filter there would just make it a re-skin of a
+  filtered Home
 - Bottom tab navigation (Home / World / Saved / Profile) built on
   Jetpack Navigation Compose
 - One shared `NewsViewModel` (StateFlow-based) driving feed, search,

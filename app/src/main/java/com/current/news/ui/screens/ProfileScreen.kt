@@ -233,7 +233,7 @@ private fun CountryDialog(
                 Text("Reading preferences", fontFamily = DisplayFont, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = colors.textHi)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Choose a country to prioritize its news on Home and World.",
+                    "Choose a country to prioritize its news on Home and in Search. World always stays global.",
                     fontFamily = BodyFont,
                     fontSize = 11.5.sp,
                     color = colors.textMid

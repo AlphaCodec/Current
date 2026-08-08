@@ -91,12 +91,15 @@ class NewsViewModel : ViewModel() {
             .replace(Regex("\\s+"), " ")
             .trim()
 
-    /** Called from Profile → Reading preferences. Reloads Home and World with the new filter. */
+    /**
+     * Called from Profile → Reading preferences. Reloads Home (and Search's
+     * next query) with the new filter — deliberately does NOT touch World,
+     * which stays unfiltered regardless of this setting.
+     */
     fun setCountry(code: String?) {
         if (code == countryCode) return
         countryCode = code
         loadEdition(_homeState.value.selectedEdition)
-        loadWorld()
     }
 
     // ---- Home feed ----
@@ -197,7 +200,12 @@ class NewsViewModel : ViewModel() {
             it.copy(isLoading = true, isLoadingMore = false, canLoadMore = false, loadMoreError = null, error = null)
         }
         viewModelScope.launch {
-            when (val result = NewsRepository.fetchArticles(country = countryCode)) {
+            // Deliberately no `country` param here — World is meant to be
+            // the one genuinely unfiltered feed in the app, independent of
+            // the Reading preferences country setting (which only affects
+            // Home and Search). Applying it here would just make World a
+            // re-skin of a filtered Home, defeating its purpose.
+            when (val result = NewsRepository.fetchArticles()) {
                 is RepoResult.Success -> {
                     val page = result.data
                     val deduped = page.articles.dedupedBy()
@@ -227,7 +235,7 @@ class NewsViewModel : ViewModel() {
 
         _worldState.update { it.copy(isLoadingMore = true, loadMoreError = null) }
         viewModelScope.launch {
-            when (val result = NewsRepository.fetchArticles(country = countryCode, page = nextPage)) {
+            when (val result = NewsRepository.fetchArticles(page = nextPage)) {
                 is RepoResult.Success -> {
                     val page = result.data
                     page.articles.forEach { articleCache[it.id] = it }
