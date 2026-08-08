@@ -26,17 +26,3 @@ data class Article(
     val body: List<String>,
     val caption: String = ""
 )
-
-data class Writer(
-    val id: String,
-    val name: String,
-    val beat: String
-)
-
-data class Topic(
-    val id: String,
-    val label: String,
-    val apiCategory: String,
-    val colorStart: Color,
-    val colorEnd: Color
-)

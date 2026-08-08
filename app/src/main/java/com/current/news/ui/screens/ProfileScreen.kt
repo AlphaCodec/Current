@@ -4,9 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -15,10 +15,7 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
@@ -39,9 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.imageLoader
-import com.current.news.data.Country
+import com.current.news.data.AVAILABLE_COUNTRIES
 import com.current.news.data.ThemeMode
-import com.current.news.data.availableCountries
 import com.current.news.ui.theme.*
 import com.current.news.viewmodel.SettingsViewModel
 
@@ -50,13 +46,16 @@ fun ProfileScreen(settingsViewModel: SettingsViewModel) {
     val colors = LocalAppColors.current
     val context = LocalContext.current
     val themeMode by settingsViewModel.themeMode.collectAsState()
-    val selectedCountries by settingsViewModel.selectedCountries.collectAsState()
+    val countryCode by settingsViewModel.countryCode.collectAsState()
     var showAppearanceDialog by remember { mutableStateOf(false) }
     var showCountryDialog by remember { mutableStateOf(false) }
 
     // Bumped after clearing so the cache-size row recomputes below.
     var cacheClearTick by remember { mutableIntStateOf(0) }
     val cacheSizeLabel = remember(cacheClearTick) { formatCacheSize(context) }
+    val countryLabel = remember(countryCode) {
+        AVAILABLE_COUNTRIES.firstOrNull { it.code == countryCode }?.label ?: "Global"
+    }
 
     Column(
         modifier = Modifier
@@ -92,9 +91,9 @@ fun ProfileScreen(settingsViewModel: SettingsViewModel) {
             onClick = { showAppearanceDialog = true }
         )
         SettingsRow(
-            icon = Icons.Outlined.TextFields,
+            icon = Icons.Outlined.Public,
             label = "Reading preferences",
-            value = countrySummaryLabel(selectedCountries),
+            value = countryLabel,
             onClick = { showCountryDialog = true }
         )
 
@@ -133,25 +132,15 @@ fun ProfileScreen(settingsViewModel: SettingsViewModel) {
     }
 
     if (showCountryDialog) {
-        CountryPreferenceDialog(
-            selected = selectedCountries,
+        CountryDialog(
+            current = countryCode,
             onDismiss = { showCountryDialog = false },
-            onToggle = { code ->
-                val updated = if (code in selectedCountries) {
-                    selectedCountries - code
-                } else {
-                    selectedCountries + code
-                }
-                settingsViewModel.setSelectedCountries(updated)
+            onSelect = { code ->
+                settingsViewModel.setCountry(code)
+                showCountryDialog = false
             }
         )
     }
-}
-
-private fun countrySummaryLabel(selected: Set<String>): String = when (selected.size) {
-    0 -> "All regions"
-    1 -> availableCountries.firstOrNull { it.code == selected.first() }?.displayName ?: "1 selected"
-    else -> "${selected.size} selected"
 }
 
 private fun formatCacheSize(context: android.content.Context): String {
@@ -229,16 +218,11 @@ private fun AppearanceDialog(
     )
 }
 
-/**
- * Multi-select country picker for Reading preferences. Selecting one or more
- * countries filters the Home feed to news from those regions (via NewsData.io's
- * `country` param); selecting none falls back to the general/global mix.
- */
 @Composable
-private fun CountryPreferenceDialog(
-    selected: Set<String>,
+private fun CountryDialog(
+    current: String?,
     onDismiss: () -> Unit,
-    onToggle: (String) -> Unit
+    onSelect: (String?) -> Unit
 ) {
     val colors = LocalAppColors.current
     AlertDialog(
@@ -246,28 +230,41 @@ private fun CountryPreferenceDialog(
         containerColor = colors.surface,
         title = {
             Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Public, contentDescription = null, tint = colors.textMid, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Reading preferences", fontFamily = DisplayFont, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = colors.textHi)
-                }
+                Text("Reading preferences", fontFamily = DisplayFont, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = colors.textHi)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Choose the countries you want news from. Leave everything unchecked for a general mix.",
+                    "Choose a country to prioritize its news on Home and World.",
                     fontFamily = BodyFont,
                     fontSize = 11.5.sp,
-                    color = colors.textLo
+                    color = colors.textMid
                 )
             }
         },
         text = {
-            LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
-                items(availableCountries, key = { it.code }) { country ->
-                    CountryRow(
-                        country = country,
-                        checked = country.code in selected,
-                        onClick = { onToggle(country.code) }
-                    )
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                AVAILABLE_COUNTRIES.forEach { country ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(country.code) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(country.label, fontFamily = BodyFont, fontSize = 14.sp, color = colors.textHi)
+                        RadioButton(
+                            selected = country.code == current,
+                            onClick = { onSelect(country.code) },
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = colors.red,
+                                unselectedColor = colors.lineSoft
+                            )
+                        )
+                    }
                 }
             }
         },
@@ -283,29 +280,6 @@ private fun CountryPreferenceDialog(
             )
         }
     )
-}
-
-@Composable
-private fun CountryRow(country: Country, checked: Boolean, onClick: () -> Unit) {
-    val colors = LocalAppColors.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(country.displayName, fontFamily = BodyFont, fontSize = 14.sp, color = colors.textHi)
-        Checkbox(
-            checked = checked,
-            onCheckedChange = { onClick() },
-            colors = CheckboxDefaults.colors(
-                checkedColor = colors.red,
-                uncheckedColor = colors.lineSoft
-            )
-        )
-    }
 }
 
 @Composable
