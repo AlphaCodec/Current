@@ -27,13 +27,11 @@ fun CurrentNavGraph(settingsViewModel: SettingsViewModel) {
     val navController = rememberNavController()
     val viewModel: NewsViewModel = viewModel()
 
-    // Bridges Profile → Reading preferences → Country into the shared feed
-    // ViewModel, wherever it changes. Centralized here (rather than in each
-    // screen) so switching countries doesn't trigger a reload once per
-    // mounted screen.
-    val countryCode by settingsViewModel.countryCode.collectAsState()
-    LaunchedEffect(countryCode) {
-        viewModel.setCountry(countryCode)
+    // Reading preferences (selected countries) live in SettingsViewModel/DataStore;
+    // push any change straight into the news feed so Home reflects it immediately.
+    val selectedCountries by settingsViewModel.selectedCountries.collectAsState()
+    LaunchedEffect(selectedCountries) {
+        viewModel.setCountryFilter(selectedCountries)
     }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -48,11 +46,18 @@ fun CurrentNavGraph(settingsViewModel: SettingsViewModel) {
                         navController.navigate("article/$id")
                     })
                 }
-                composable(AppTab.World.route) {
-                    WorldScreen(
+                composable(AppTab.Explore.route) {
+                    ExploreScreen(
                         viewModel = viewModel,
                         onOpenSearch = { navController.navigate("search") },
-                        onOpenArticle = { id -> navController.navigate("article/$id") }
+                        onOpenTopic = { edition ->
+                            viewModel.selectEdition(edition)
+                            navController.navigate(AppTab.Home.route) {
+                                popUpTo(AppTab.Home.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
                     )
                 }
                 composable(AppTab.Saved.route) {

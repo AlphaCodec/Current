@@ -27,17 +27,6 @@ data class HomeUiState(
     val usingSampleData: Boolean = !NewsRepository.hasApiKey
 )
 
-/** Unfiltered "everything" feed backing the World tab — no category, just latest. */
-data class WorldUiState(
-    val stories: List<Article> = emptyList(),
-    val isLoading: Boolean = true,
-    val isLoadingMore: Boolean = false,
-    val canLoadMore: Boolean = false,
-    val loadMoreError: String? = null,
-    val error: String? = null,
-    val usingSampleData: Boolean = !NewsRepository.hasApiKey
-)
-
 data class SearchUiState(
     val query: String = "",
     val activeFilter: String = "All",
@@ -56,10 +45,6 @@ class NewsViewModel : ViewModel() {
     // and also doubles as our source of truth for de-duplication.
     private val articleCache = HashMap<String, Article>()
 
-    // The user's Reading preferences → Country selection (Profile screen).
-    // Null = Global / no filter. Applied to Home, World, and Search alike.
-    private var countryCode: String? = null
-
     /**
      * NewsData.io's free-tier `/latest` pagination is a moving window, not a
      * stable cursor — as new articles publish, a `nextPage` fetch can hand
@@ -75,6 +60,9 @@ class NewsViewModel : ViewModel() {
         val result = ArrayList<Article>()
         for (a in existing + this) {
             val titleKey = normalizeTitle(a.title)
+            // Only let a normalized title collide with itself if it's long/specific
+            // enough to be meaningful — short generic titles ("Live updates") could
+            // otherwise false-positive against unrelated stories.
             val isDuplicate = a.id in seenIds || (titleKey.length >= 15 && titleKey in seenTitles)
             if (!isDuplicate) {
                 seenIds.add(a.id)
@@ -87,27 +75,32 @@ class NewsViewModel : ViewModel() {
 
     private fun normalizeTitle(title: String): String =
         title.lowercase()
-            .replace(Regex("[^a-z0-9\\s]"), "")
+            .replace(Regex("[^a-z0-9\\s]"), "") // strip punctuation so "Fed holds rates." == "Fed holds rates"
             .replace(Regex("\\s+"), " ")
             .trim()
 
-    /** Called from Profile → Reading preferences. Reloads Home and World with the new filter. */
-    fun setCountry(code: String?) {
-        if (code == countryCode) return
-        countryCode = code
-        loadEdition(_homeState.value.selectedEdition)
-        loadWorld()
-    }
-
-    // ---- Home feed ----
+    // ---- Feed ----
     private val _homeState = MutableStateFlow(HomeUiState())
     val homeState: StateFlow<HomeUiState> = _homeState.asStateFlow()
     private var homeNextPage: String? = null
     private var homeCategory: String? = null
 
+    // Reading-preference country filter (NewsData.io country codes). Empty = no filter.
+    private var selectedCountries: Set<String> = emptySet()
+
     init {
         loadEdition("For you")
-        loadWorld()
+    }
+
+    /**
+     * Called by the UI (via SettingsViewModel's persisted countries) whenever
+     * the user's Reading preferences change. Refetches the current edition
+     * with the new filter so Home reflects the change immediately.
+     */
+    fun setCountryFilter(countries: Set<String>) {
+        if (countries == selectedCountries) return
+        selectedCountries = countries
+        loadEdition(_homeState.value.selectedEdition)
     }
 
     fun selectEdition(edition: String) {
@@ -132,7 +125,7 @@ class NewsViewModel : ViewModel() {
             )
         }
         viewModelScope.launch {
-            when (val result = NewsRepository.fetchArticles(category = categoryQuery, country = countryCode)) {
+            when (val result = NewsRepository.fetchArticles(category = categoryQuery, countries = selectedCountries)) {
                 is RepoResult.Success -> {
                     val page = result.data
                     val deduped = page.articles.dedupedBy()
@@ -159,6 +152,7 @@ class NewsViewModel : ViewModel() {
         }
     }
 
+    /** Called when the home feed scrolls near the bottom. Safe to call repeatedly. */
     fun loadMoreHome() {
         val state = _homeState.value
         if (state.isLoading || state.isLoadingMore || !state.canLoadMore) return
@@ -166,7 +160,7 @@ class NewsViewModel : ViewModel() {
 
         _homeState.update { it.copy(isLoadingMore = true, loadMoreError = null) }
         viewModelScope.launch {
-            when (val result = NewsRepository.fetchArticles(category = homeCategory, country = countryCode, page = nextPage)) {
+            when (val result = NewsRepository.fetchArticles(category = homeCategory, countries = selectedCountries, page = nextPage)) {
                 is RepoResult.Success -> {
                     val page = result.data
                     page.articles.forEach { articleCache[it.id] = it }
@@ -183,72 +177,9 @@ class NewsViewModel : ViewModel() {
                     }
                 }
                 is RepoResult.Error -> {
+                    // Keep canLoadMore as-is so the retry affordance below stays
+                    // visible and a subsequent tap/scroll can try again.
                     _homeState.update { it.copy(isLoadingMore = false, loadMoreError = result.message) }
-                }
-            }
-        }
-    }
-
-    // ---- World feed (unfiltered — replaces the old Explore tab) ----
-    private val _worldState = MutableStateFlow(WorldUiState())
-    val worldState: StateFlow<WorldUiState> = _worldState.asStateFlow()
-    private var worldNextPage: String? = null
-
-    fun retryWorld() = loadWorld()
-
-    private fun loadWorld() {
-        worldNextPage = null
-        _worldState.update {
-            it.copy(isLoading = true, isLoadingMore = false, canLoadMore = false, loadMoreError = null, error = null)
-        }
-        viewModelScope.launch {
-            when (val result = NewsRepository.fetchArticles(country = countryCode)) {
-                is RepoResult.Success -> {
-                    val page = result.data
-                    val deduped = page.articles.dedupedBy()
-                    deduped.forEach { articleCache[it.id] = it }
-                    worldNextPage = page.nextPageToken
-                    _worldState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = null,
-                            stories = deduped,
-                            canLoadMore = worldNextPage != null,
-                            usingSampleData = !NewsRepository.hasApiKey
-                        )
-                    }
-                }
-                is RepoResult.Error -> {
-                    _worldState.update { it.copy(isLoading = false, error = result.message) }
-                }
-            }
-        }
-    }
-
-    fun loadMoreWorld() {
-        val state = _worldState.value
-        if (state.isLoading || state.isLoadingMore || !state.canLoadMore) return
-        val nextPage = worldNextPage ?: return
-
-        _worldState.update { it.copy(isLoadingMore = true, loadMoreError = null) }
-        viewModelScope.launch {
-            when (val result = NewsRepository.fetchArticles(country = countryCode, page = nextPage)) {
-                is RepoResult.Success -> {
-                    val page = result.data
-                    page.articles.forEach { articleCache[it.id] = it }
-                    worldNextPage = page.nextPageToken
-                    _worldState.update { current ->
-                        val combined = page.articles.dedupedBy(existing = current.stories)
-                        current.copy(
-                            isLoadingMore = false,
-                            loadMoreError = null,
-                            stories = combined,
-                            canLoadMore = worldNextPage != null
-                        )
-                    }
-                }
-                is RepoResult.Error -> {
-                    _worldState.update { it.copy(isLoadingMore = false, loadMoreError = result.message) }
                 }
             }
         }
@@ -287,7 +218,7 @@ class NewsViewModel : ViewModel() {
     private suspend fun runSearch(query: String) {
         searchNextPage = null
         _searchState.update { it.copy(isLoading = true, loadMoreError = null, error = null) }
-        when (val result = NewsRepository.fetchArticles(query = query, country = countryCode)) {
+        when (val result = NewsRepository.fetchArticles(query = query)) {
             is RepoResult.Success -> {
                 val page = result.data
                 val deduped = page.articles.dedupedBy()
@@ -309,6 +240,7 @@ class NewsViewModel : ViewModel() {
         }
     }
 
+    /** Called when the search results list scrolls near the bottom. */
     fun loadMoreSearch() {
         val state = _searchState.value
         if (state.isLoading || state.isLoadingMore || !state.canLoadMore || state.query.isBlank()) return
@@ -316,7 +248,7 @@ class NewsViewModel : ViewModel() {
 
         _searchState.update { it.copy(isLoadingMore = true, loadMoreError = null) }
         viewModelScope.launch {
-            when (val result = NewsRepository.fetchArticles(query = state.query, country = countryCode, page = nextPage)) {
+            when (val result = NewsRepository.fetchArticles(query = state.query, page = nextPage)) {
                 is RepoResult.Success -> {
                     val page = result.data
                     page.articles.forEach { articleCache[it.id] = it }

@@ -23,13 +23,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /** Null = Global (no country filter). */
-    val countryCode: StateFlow<String?> = repository.countryCode
-        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    /** Country codes the user has chosen to follow. Empty = no filter (general mix). */
+    val selectedCountries: StateFlow<Set<String>> = repository.selectedCountries
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
-    fun setCountry(code: String?) {
+    fun setSelectedCountries(codes: Set<String>) {
         viewModelScope.launch {
-            repository.setCountry(code)
+            repository.setSelectedCountries(codes)
         }
     }
 }
