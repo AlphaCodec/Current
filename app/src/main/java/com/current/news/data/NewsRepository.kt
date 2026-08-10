@@ -108,7 +108,7 @@ object NewsRepository {
         val bodyText = content?.trim()?.takeIf { it.isNotBlank() && it != "ONLY AVAILABLE IN PAID PLANS" }
         val body = when {
             bodyText != null -> bodyText.split(Regex("\n+")).filter { it.isNotBlank() }
-            dek.isNotBlank() -> listOf(dek, "The free NewsData.io tier only provides a summary for this story. Tap \"Read full story\" below to keep reading without leaving the app.")
+            dek.isNotBlank() -> listOf(dek)
             else -> listOf("Full story available at the source.")
         }
 
@@ -128,6 +128,7 @@ object NewsRepository {
             readTime = "$minutes min read",
             publishedAtMillis = publishedAtMillis,
             imageUrl = imageUrl,
+            sourceIconUrl = sourceIcon,
             articleUrl = link,
             isHero = isHero,
             thumbColorStart = start,

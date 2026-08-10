@@ -19,6 +19,7 @@ data class Article(
     val readTime: String,
     val publishedAtMillis: Long,
     val imageUrl: String? = null,
+    val sourceIconUrl: String? = null,
     val articleUrl: String? = null,
     val isHero: Boolean = false,
     val thumbColorStart: Color,

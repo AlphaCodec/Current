@@ -24,6 +24,7 @@ data class NewsDataArticleDto(
     @SerializedName("image_url") val imageUrl: String?,
     @SerializedName("source_id") val sourceId: String?,
     @SerializedName("source_name") val sourceName: String?,
+    @SerializedName("source_icon") val sourceIcon: String?,
     val creator: List<String>?,
     val category: List<String>?,
     val country: List<String>?,

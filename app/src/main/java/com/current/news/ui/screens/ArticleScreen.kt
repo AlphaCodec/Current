@@ -100,8 +100,6 @@ fun ArticleScreen(
                     lineHeight = 32.sp,
                     color = PaperInk
                 )
-                Spacer(Modifier.height(14.dp))
-                Text(article.dek, fontFamily = BodyFont, fontSize = 14.5.sp, lineHeight = 22.sp, color = Color(0xFF57534A))
                 Spacer(Modifier.height(18.dp))
 
                 Row(
@@ -111,7 +109,19 @@ fun ArticleScreen(
                         .padding(bottom = 18.dp)
                         .border(width = 0.dp, color = Color.Transparent)
                 ) {
-                    Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0xFFC8BFA8)))
+                    Box(
+                        Modifier.size(34.dp).clip(CircleShape).background(Color(0xFFC8BFA8)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!article.sourceIconUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = article.sourceIconUrl,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize().clip(CircleShape)
+                            )
+                        }
+                    }
                     Spacer(Modifier.width(10.dp))
                     Column {
                         Text(article.author, fontFamily = BodyFont, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = PaperInk)
