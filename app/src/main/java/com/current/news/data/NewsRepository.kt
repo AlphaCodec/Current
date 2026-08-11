@@ -29,14 +29,32 @@ data class ArticlesPage(
  */
 object NewsRepository {
 
-    /** Display label -> NewsData.io `category` query value. */
+    /**
+     * Display label -> NewsData.io `category` query value.
+     * All 17 categories NewsData.io's `/latest` endpoint supports (verified
+     * against their docs), plus "For you" as an alias for their curated
+     * "top" mix. Ordered roughly by how often a general reader would reach
+     * for them — the LazyRow this backs scrolls horizontally, so nothing
+     * here needs trimming to fit.
+     */
     val editions: List<Pair<String, String?>> = listOf(
         "For you" to "top",
         "World" to "world",
+        "Politics" to "politics",
         "Business" to "business",
         "Technology" to "technology",
-        "Climate" to "environment",
-        "Culture" to "entertainment"
+        "Science" to "science",
+        "Health" to "health",
+        "Sports" to "sports",
+        "Entertainment" to "entertainment",
+        "Environment" to "environment",
+        "Food" to "food",
+        "Lifestyle" to "lifestyle",
+        "Travel" to "tourism",
+        "Crime" to "crime",
+        "Education" to "education",
+        "Domestic" to "domestic",
+        "Other" to "other"
     )
 
     val hasApiKey: Boolean get() = BuildConfig.NEWSDATA_API_KEY.isNotBlank()

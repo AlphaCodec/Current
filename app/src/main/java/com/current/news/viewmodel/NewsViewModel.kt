@@ -1,8 +1,10 @@
 package com.current.news.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.current.news.data.Article
+import com.current.news.data.BookmarksRepository
 import com.current.news.data.NewsRepository
 import com.current.news.data.RepoResult
 import kotlinx.coroutines.Job
@@ -10,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -17,7 +20,7 @@ data class HomeUiState(
     val selectedEdition: String = "For you",
     val editions: List<String> = NewsRepository.editions.map { it.first },
     val justInHeadline: String? = null,
-    val hero: Article? = null,
+    val featured: List<Article> = emptyList(),
     val stories: List<Article> = emptyList(),
     val isLoading: Boolean = true,
     val isLoadingMore: Boolean = false,
@@ -25,7 +28,11 @@ data class HomeUiState(
     val loadMoreError: String? = null,
     val error: String? = null,
     val usingSampleData: Boolean = !NewsRepository.hasApiKey
-)
+) {
+    // Convenience for callers that only care about a single "top" story
+    // (e.g. picking which headline to show in the "Just in" banner text).
+    val hero: Article? get() = featured.firstOrNull()
+}
 
 /** Unfiltered "everything" feed backing the World tab — no category, just latest. */
 data class WorldUiState(
@@ -49,7 +56,14 @@ data class SearchUiState(
     val error: String? = null
 )
 
-class NewsViewModel : ViewModel() {
+class NewsViewModel(application: Application) : AndroidViewModel(application) {
+
+    companion object {
+        /** How many top stories populate the swipeable Home carousel. */
+        private const val FEATURED_COUNT = 5
+    }
+
+    private val bookmarksRepository = BookmarksRepository(application)
 
     // Every article the app has seen this session, keyed by id — lets the
     // article reader look up a story without a dedicated "get by id" call,
@@ -136,14 +150,15 @@ class NewsViewModel : ViewModel() {
                     val deduped = page.articles.dedupedBy()
                     deduped.forEach { articleCache[it.id] = it }
                     homeNextPage = page.nextPageToken
-                    val hero = deduped.firstOrNull { it.isHero } ?: deduped.firstOrNull()
-                    val rest = deduped.filterNot { it.id == hero?.id }
+                    // First few stories become the swipeable carousel; the rest are the plain list below it.
+                    val featured = deduped.take(FEATURED_COUNT)
+                    val rest = deduped.drop(FEATURED_COUNT)
                     _homeState.update {
                         it.copy(
                             isLoading = false,
                             error = null,
-                            hero = hero,
-                            justInHeadline = rest.firstOrNull()?.title ?: hero?.title,
+                            featured = featured,
+                            justInHeadline = rest.firstOrNull()?.title ?: featured.firstOrNull()?.title,
                             stories = rest,
                             canLoadMore = homeNextPage != null,
                             usingSampleData = !NewsRepository.hasApiKey
@@ -170,12 +185,14 @@ class NewsViewModel : ViewModel() {
                     page.articles.forEach { articleCache[it.id] = it }
                     homeNextPage = page.nextPageToken
                     _homeState.update { current ->
-                        val combined = page.articles.dedupedBy(existing = listOfNotNull(current.hero) + current.stories)
-                        val hero = current.hero ?: combined.firstOrNull()
+                        // Dedupe against everything already shown (featured + stories);
+                        // the featured carousel itself never changes on load-more, only
+                        // the plain list below it grows.
+                        val combined = page.articles.dedupedBy(existing = current.featured + current.stories)
                         current.copy(
                             isLoadingMore = false,
                             loadMoreError = null,
-                            stories = combined.filterNot { it.id == hero?.id },
+                            stories = combined.drop(current.featured.size),
                             canLoadMore = homeNextPage != null
                         )
                     }
@@ -348,33 +365,46 @@ class NewsViewModel : ViewModel() {
         else -> list
     }
 
-    // ---- Bookmarks (in-memory for this session) ----
+    // ---- Bookmarks (persisted to disk via DataStore — survive app restarts) ----
     private val _savedArticles = MutableStateFlow<List<Article>>(emptyList())
     val savedArticles: StateFlow<List<Article>> = _savedArticles.asStateFlow()
 
     fun isSaved(id: String): Boolean = _savedArticles.value.any { it.id == id }
 
     fun toggleSave(article: Article) {
-        _savedArticles.update { current ->
+        val updated = _savedArticles.value.let { current ->
             if (current.any { it.id == article.id }) {
                 current.filterNot { it.id == article.id }
             } else {
                 current + article
             }
         }
+        _savedArticles.value = updated
+        viewModelScope.launch { bookmarksRepository.setSavedArticles(updated) }
     }
 
     // ---- Lookup ----
     fun article(id: String): Article? = articleCache[id]
 
     // Placed last, deliberately — this must run after every property it
-    // touches (_homeState, _worldState, etc.) has actually been initialized.
-    // Kotlin runs property initializers and init{} blocks strictly in
-    // declaration order, so an init block placed earlier in the file than a
-    // property it uses would see that property as still null (a real crash
-    // this project hit once already).
+    // touches (_homeState, _worldState, _savedArticles, etc.) has actually
+    // been initialized. Kotlin runs property initializers and init{} blocks
+    // strictly in declaration order, so an init block placed earlier in the
+    // file than a property it uses would see that property as still null
+    // (a real crash this project hit once already).
     init {
         loadEdition("For you")
         loadWorld()
+
+        // Load whatever was bookmarked in a previous session. A one-shot
+        // read (not an ongoing collect) is deliberate — after this, toggleSave
+        // is the single source of truth for both the in-memory state and
+        // what's persisted, so we don't want a long-lived collector fighting
+        // with it over who updates _savedArticles.
+        viewModelScope.launch {
+            val persisted = bookmarksRepository.savedArticles.first()
+            persisted.forEach { articleCache[it.id] = it }
+            _savedArticles.value = persisted
+        }
     }
 }

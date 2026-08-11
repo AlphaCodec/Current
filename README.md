@@ -49,10 +49,16 @@ data is opt-in.
 
 ## Features
 
-- **Home feed** — editions filter row mapped to real NewsData.io
-  categories, a "Just in" banner, hero story with a real photo, ranked
-  story list with **infinite scroll** (loads the next page automatically
-  as you near the bottom, via NewsData.io's `nextPage` token)
+- **Home feed** — editions filter row covering **all 17 categories**
+  NewsData.io's `/latest` endpoint supports (World, Politics, Business,
+  Technology, Science, Health, Sports, Entertainment, Environment, Food,
+  Lifestyle, Travel, Crime, Education, Domestic, Other — plus "For you"
+  as their curated "top" mix), a "Just in" banner, a **swipeable
+  carousel of the top 5 stories** (tappable dot indicators, gentle
+  auto-advance every 5s that backs off the moment you touch it — user
+  control always wins over the automatic rotation), ranked story list
+  with **infinite scroll** (loads the next page automatically as you
+  near the bottom, via NewsData.io's `nextPage` token)
 - **Article reader** — paper reading surface, drop-cap opening
   paragraph, real thumbnail, scroll progress indicator, save/share
   (real Android share sheet)/listen toolbar, "Read full story" link that
@@ -63,7 +69,10 @@ data is opt-in.
   old Explore tab, which turned out to be mostly redundant with Home
 - **Search** — live query against the API (debounced), Articles/Opinion
   filters, infinite scroll on results
-- **Saved** — bookmarking of full articles, persisted for the session,
+- **Saved** — bookmarking of full articles, persisted to disk with
+  DataStore (JSON, via a storage-friendly mirror of `Article` since
+  Compose `Color` doesn't serialize cleanly) so they survive app
+  restarts — previously session-only, called out below
   with an empty state
 - **Profile** — account shell + a working **Appearance** setting
   (Light/Dark/System), persisted with DataStore
@@ -154,8 +163,6 @@ out of the box without any secrets configured.
 
 ## Next steps
 
-- Move bookmarks from in-memory to DataStore/Room so they survive app
-  restarts (currently session-only, called out above)
 - Add pull-to-refresh on the home feed
 - Add pagination using `nextPage` from the NewsData.io response
 - Cache responses per-edition in memory during a session to cut down on

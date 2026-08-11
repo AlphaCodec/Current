@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,8 +18,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +29,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -37,6 +42,8 @@ import com.current.news.ui.components.LoadingMoreFooter
 import com.current.news.ui.components.LoadMoreErrorFooter
 import com.current.news.ui.theme.*
 import com.current.news.viewmodel.NewsViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -147,9 +154,9 @@ fun HomeScreen(
             }
         }
 
-        state.hero?.let { hero ->
+        if (state.featured.isNotEmpty()) {
             item {
-                HeroCard(hero) { onOpenArticle(hero.id) }
+                FeaturedCarousel(featured = state.featured, onOpenArticle = onOpenArticle)
                 Spacer(Modifier.height(20.dp))
             }
         }
@@ -177,7 +184,7 @@ fun HomeScreen(
                     fontSize = 10.5.sp,
                     color = colors.textLo,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -207,6 +214,59 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
                 .clickable { onRetry() }
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         )
+    }
+}
+
+@Composable
+private fun FeaturedCarousel(featured: List<Article>, onOpenArticle: (String) -> Unit) {
+    val colors = LocalAppColors.current
+    val pagerState = rememberPagerState(pageCount = { featured.size })
+    val scope = rememberCoroutineScope()
+
+    // Gentle auto-advance — but it backs off the moment the user actually
+    // touches the carousel, so "interactive control" always wins over the
+    // automatic rotation rather than fighting it.
+    LaunchedEffect(pagerState, featured.size) {
+        if (featured.size <= 1) return@LaunchedEffect
+        while (true) {
+            delay(5000)
+            if (!pagerState.isScrollInProgress) {
+                val next = (pagerState.currentPage + 1) % featured.size
+                pagerState.animateScrollToPage(next)
+            }
+        }
+    }
+
+    Column {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth()
+        ) { page ->
+            val article = featured[page]
+            HeroCard(article) { onOpenArticle(article.id) }
+        }
+
+        if (featured.size > 1) {
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                featured.indices.forEach { index ->
+                    val active = index == pagerState.currentPage
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 3.dp)
+                            .size(if (active) 8.dp else 6.dp)
+                            .clip(CircleShape)
+                            .background(if (active) colors.red else colors.lineSoft)
+                            .clickable {
+                                scope.launch { pagerState.animateScrollToPage(index) }
+                            }
+                    )
+                }
+            }
+        }
     }
 }
 
