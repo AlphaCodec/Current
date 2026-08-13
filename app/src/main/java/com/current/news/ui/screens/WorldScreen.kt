@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.current.news.ui.components.InfiniteScrollHandler
 import com.current.news.ui.components.LoadMoreErrorFooter
 import com.current.news.ui.components.LoadingMoreFooter
+import com.current.news.ui.components.ScrollToTopButton
 import com.current.news.ui.components.SectionLabel
 import com.current.news.ui.components.StoryRow
 import com.current.news.ui.theme.*
@@ -52,7 +53,8 @@ fun WorldScreen(
 
     InfiniteScrollHandler(listState = listState) { viewModel.loadMoreWorld() }
 
-    LazyColumn(
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
         state = listState,
         modifier = Modifier
             .fillMaxSize()
@@ -145,6 +147,14 @@ fun WorldScreen(
                 )
             }
         }
+        }
+
+        ScrollToTopButton(
+            listState = listState,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp)
+        )
     }
 }
 

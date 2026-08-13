@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -40,7 +41,9 @@ import com.current.news.ui.components.StoryRow
 import com.current.news.ui.components.InfiniteScrollHandler
 import com.current.news.ui.components.LoadingMoreFooter
 import com.current.news.ui.components.LoadMoreErrorFooter
+import com.current.news.ui.components.ScrollToTopButton
 import com.current.news.ui.theme.*
+import com.current.news.viewmodel.HomeUiState
 import com.current.news.viewmodel.NewsViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -56,6 +59,32 @@ fun HomeScreen(
 
     InfiniteScrollHandler(listState = listState) { viewModel.loadMoreHome() }
 
+    Box(Modifier.fillMaxSize()) {
+        HomeFeedList(
+            state = state,
+            listState = listState,
+            colors = colors,
+            viewModel = viewModel,
+            onOpenArticle = onOpenArticle
+        )
+
+        ScrollToTopButton(
+            listState = listState,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp)
+        )
+    }
+}
+
+@Composable
+private fun HomeFeedList(
+    state: HomeUiState,
+    listState: LazyListState,
+    colors: AppColors,
+    viewModel: NewsViewModel,
+    onOpenArticle: (String) -> Unit
+) {
     LazyColumn(
         state = listState,
         modifier = Modifier

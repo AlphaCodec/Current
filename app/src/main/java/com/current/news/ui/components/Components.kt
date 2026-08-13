@@ -1,5 +1,10 @@
 package com.current.news.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.outlined.Bookmark
@@ -24,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.current.news.data.Article
 import com.current.news.ui.theme.*
+import kotlinx.coroutines.launch
 
 enum class AppTab(val route: String, val label: String) {
     Home("home", "Home"),
@@ -268,6 +276,49 @@ fun StoryRow(article: Article, onClick: () -> Unit) {
                 fontFamily = MonoFont,
                 fontSize = 10.sp,
                 color = colors.textLo
+            )
+        }
+    }
+}
+
+/**
+ * A floating circular button that fades/scales in once the user has
+ * scrolled a bit into a list, and animates the list back to the top when
+ * tapped. Drop it inside a Box alongside the list it controls, aligned to
+ * BottomEnd.
+ */
+@Composable
+fun ScrollToTopButton(listState: LazyListState, modifier: Modifier = Modifier) {
+    val colors = LocalAppColors.current
+    val scope = rememberCoroutineScope()
+
+    // Only show once there's meaningfully something to scroll back past —
+    // avoids flashing in for a two-item list that barely scrolls at all.
+    val visible by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 3 }
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + scaleIn(),
+        exit = fadeOut() + scaleOut(),
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(colors.textHi)
+                .clickable {
+                    scope.launch { listState.animateScrollToItem(0) }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Filled.KeyboardArrowUp,
+                contentDescription = "Scroll to top",
+                tint = colors.background,
+                modifier = Modifier.size(26.dp)
             )
         }
     }

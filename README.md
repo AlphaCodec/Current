@@ -53,20 +53,25 @@ data is opt-in.
   NewsData.io's `/latest` endpoint supports (World, Politics, Business,
   Technology, Science, Health, Sports, Entertainment, Environment, Food,
   Lifestyle, Travel, Crime, Education, Domestic, Other — plus "For you"
-  as their curated "top" mix), a "Just in" banner, a **swipeable
-  carousel of the top 5 stories** (tappable dot indicators, gentle
-  auto-advance every 5s that backs off the moment you touch it — user
-  control always wins over the automatic rotation), ranked story list
-  with **infinite scroll** (loads the next page automatically as you
-  near the bottom, via NewsData.io's `nextPage` token)
+  as their curated "top" mix), **switchable by swiping left/right on the
+  feed itself** (not just tapping a pill — swipe left for the next
+  edition, right for the previous, clamped at the ends rather than
+  wrapping), a "Just in" banner, a **swipeable carousel of the top 5
+  stories** (tappable dot indicators, gentle auto-advance every 5s that
+  backs off the moment you touch it — user control always wins over the
+  automatic rotation), ranked story list with **infinite scroll** (loads
+  the next page automatically as you near the bottom, via NewsData.io's
+  `nextPage` token), and a **scroll-to-top button** that fades in once
+  you've scrolled a few items down
 - **Article reader** — paper reading surface, drop-cap opening
   paragraph, real thumbnail, scroll progress indicator, save/share
   (real Android share sheet)/listen toolbar, "Read full story" link that
   opens the source in a Chrome Custom Tab (in-app browser sheet)
 - **World** — an unfiltered, chronological stream of everything the
-  source has (no category narrowing), with quick access to Search.
-  Deliberately *not* a re-skin of Home's category pills — replaces the
-  old Explore tab, which turned out to be mostly redundant with Home
+  source has (no category narrowing), with quick access to Search and
+  the same scroll-to-top button as Home. Deliberately *not* a re-skin
+  of Home's category pills — replaces the old Explore tab, which turned
+  out to be mostly redundant with Home
 - **Search** — live query against the API (debounced), Articles/Opinion
   filters, infinite scroll on results
 - **Saved** — bookmarking of full articles, persisted to disk with
@@ -94,8 +99,14 @@ data is opt-in.
   the one screen meant to always show a genuinely unfiltered feed, so
   applying the country filter there would just make it a re-skin of a
   filtered Home
-- Bottom tab navigation (Home / World / Saved / Profile) built on
-  Jetpack Navigation Compose
+- **Bottom tab navigation is swipeable** — Home / World / Saved / Profile
+  live on a `HorizontalPager`, so you can swipe left/right on the content
+  area to move between them, not just tap the bottom bar icons (tapping
+  an icon just animates the same pager to that page). All four tabs stay
+  composed simultaneously (`beyondViewportPageCount`) specifically so
+  swiping away from a tab and back doesn't reset its scroll position —
+  Search and the article reader remain separate pushed destinations
+  outside the pager, not swipeable tabs themselves
 - One shared `NewsViewModel` (StateFlow-based) driving feed, search,
   and bookmarks, with an in-memory article cache so opening a story
   doesn't require a second network call
