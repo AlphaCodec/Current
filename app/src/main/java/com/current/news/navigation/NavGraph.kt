@@ -100,6 +100,7 @@ fun CurrentNavGraph(settingsViewModel: SettingsViewModel) {
                     ArticleScreen(
                         articleId = id,
                         viewModel = viewModel,
+                        settingsViewModel = settingsViewModel,
                         onBack = { navController.popBackStack() }
                     )
                 }

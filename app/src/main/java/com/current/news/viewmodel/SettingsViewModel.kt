@@ -32,4 +32,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             repository.setCountry(code)
         }
     }
+
+    /** Listen (text-to-speech) playback rate — 1.0 is normal speed. */
+    val ttsSpeed: StateFlow<Float> = repository.ttsSpeed
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 1.0f)
+
+    fun setTtsSpeed(speed: Float) {
+        viewModelScope.launch { repository.setTtsSpeed(speed) }
+    }
+
+    /** Listen (text-to-speech) pitch — 1.0 is normal pitch. */
+    val ttsPitch: StateFlow<Float> = repository.ttsPitch
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 1.0f)
+
+    fun setTtsPitch(pitch: Float) {
+        viewModelScope.launch { repository.setTtsPitch(pitch) }
+    }
 }

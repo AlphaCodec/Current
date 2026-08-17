@@ -10,15 +10,25 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,12 +49,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.current.news.ui.theme.*
+import com.current.news.util.TtsManager
 import com.current.news.viewmodel.NewsViewModel
+import com.current.news.viewmodel.SettingsViewModel
+import kotlin.math.roundToInt
 
 @Composable
 fun ArticleScreen(
     articleId: String,
     viewModel: NewsViewModel,
+    settingsViewModel: SettingsViewModel,
     onBack: () -> Unit
 ) {
     val article = viewModel.article(articleId)
@@ -60,6 +74,32 @@ fun ArticleScreen(
     }
 
     val listState = rememberLazyListState()
+
+    // ---- Listen (text-to-speech) ----
+    val ttsManager = remember { TtsManager(context) }
+    DisposableEffect(Unit) {
+        onDispose { ttsManager.shutdown() }
+    }
+    val ttsSpeed by settingsViewModel.ttsSpeed.collectAsState()
+    val ttsPitch by settingsViewModel.ttsPitch.collectAsState()
+    // Re-applied whenever the user changes a setting, or the moment the
+    // engine finishes initializing (ttsManager.isReady flips true) — a
+    // rate/pitch set before the engine is ready would otherwise be dropped.
+    LaunchedEffect(ttsSpeed, ttsPitch, ttsManager.isReady.value) {
+        ttsManager.setSpeechRate(ttsSpeed)
+        ttsManager.setPitch(ttsPitch)
+    }
+    val speakableText = remember(article.id) {
+        buildString {
+            append(article.title)
+            append(". ")
+            article.body.forEach { paragraph ->
+                append(paragraph)
+                append(" ")
+            }
+        }
+    }
+    var showTtsSettings by rememberSaveable { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().background(Paper)) {
         Row(
@@ -204,10 +244,124 @@ fun ArticleScreen(
                 }
                 context.startActivity(android.content.Intent.createChooser(sendIntent, null))
             }
-            ReaderToolItem(icon = Icons.Outlined.Headphones, label = "Listen") { }
-            ReaderToolItem(icon = Icons.Outlined.MoreHoriz, label = "More") { }
+            ReaderToolItem(
+                icon = if (ttsManager.isSpeaking.value) Icons.Filled.Headphones else Icons.Outlined.Headphones,
+                label = if (ttsManager.isSpeaking.value) "Stop" else "Listen",
+                tint = if (ttsManager.isSpeaking.value) Red else Color(0xFF8A8478)
+            ) {
+                if (ttsManager.isSpeaking.value) {
+                    ttsManager.stop()
+                } else {
+                    ttsManager.speak(speakableText)
+                }
+            }
+            ReaderToolItem(icon = Icons.Outlined.MoreHoriz, label = "More") {
+                showTtsSettings = true
+            }
         }
     }
+
+    if (showTtsSettings) {
+        ListenSettingsDialog(
+            speed = ttsSpeed,
+            pitch = ttsPitch,
+            isSpeaking = ttsManager.isSpeaking.value,
+            onSpeedChange = { settingsViewModel.setTtsSpeed(it) },
+            onPitchChange = { settingsViewModel.setTtsPitch(it) },
+            onStop = { ttsManager.stop() },
+            onDismiss = { showTtsSettings = false }
+        )
+    }
+}
+
+@Composable
+private fun ListenSettingsDialog(
+    speed: Float,
+    pitch: Float,
+    isSpeaking: Boolean,
+    onSpeedChange: (Float) -> Unit,
+    onPitchChange: (Float) -> Unit,
+    onStop: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Paper,
+        title = {
+            Text("Listen settings", fontFamily = DisplayFont, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = PaperInk)
+        },
+        text = {
+            Column {
+                Text(
+                    "Applies the next time you tap Listen — changes made mid-playback take effect on your next sentence.",
+                    fontFamily = BodyFont,
+                    fontSize = 11.5.sp,
+                    color = PaperMuted
+                )
+                Spacer(Modifier.height(18.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Speed", fontFamily = BodyFont, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = PaperInk)
+                    Text("${((speed * 100).roundToInt())}%", fontFamily = MonoFont, fontSize = 11.sp, color = PaperMuted)
+                }
+                Slider(
+                    value = speed,
+                    onValueChange = onSpeedChange,
+                    valueRange = 0.5f..2.0f,
+                    steps = 5, // 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0
+                    colors = SliderDefaults.colors(
+                        thumbColor = Red,
+                        activeTrackColor = Red,
+                        inactiveTrackColor = PaperLine
+                    )
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Pitch", fontFamily = BodyFont, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = PaperInk)
+                    Text("${((pitch * 100).roundToInt())}%", fontFamily = MonoFont, fontSize = 11.sp, color = PaperMuted)
+                }
+                Slider(
+                    value = pitch,
+                    onValueChange = onPitchChange,
+                    valueRange = 0.5f..1.5f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Red,
+                        activeTrackColor = Red,
+                        inactiveTrackColor = PaperLine
+                    )
+                )
+
+                if (isSpeaking) {
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        "STOP READING",
+                        fontFamily = MonoFont,
+                        fontSize = 11.sp,
+                        letterSpacing = 0.5.sp,
+                        color = Red,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, Red, RoundedCornerShape(8.dp))
+                            .clickable { onStop() }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Text(
+                "Done",
+                fontFamily = MonoFont,
+                fontSize = 11.sp,
+                color = Red,
+                modifier = Modifier
+                    .clickable { onDismiss() }
+                    .padding(12.dp)
+            )
+        }
+    )
 }
 
 private fun LazyListScope.itemsIndexed(paragraphs: List<String>) {
@@ -277,6 +431,6 @@ private fun ReaderToolItem(
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onClick() }.padding(8.dp)) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(18.dp))
         Spacer(Modifier.height(3.dp))
-        Text(label.uppercase(), fontFamily = MonoFont, fontSize = 8.sp, color = Color(0xFF8A8478))
+        Text(label.uppercase(), fontFamily = MonoFont, fontSize = 8.sp, color = tint)
     }
 }

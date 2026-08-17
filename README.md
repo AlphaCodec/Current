@@ -65,8 +65,13 @@ data is opt-in.
   you've scrolled a few items down
 - **Article reader** — paper reading surface, drop-cap opening
   paragraph, real thumbnail, scroll progress indicator, save/share
-  (real Android share sheet)/listen toolbar, "Read full story" link that
-  opens the source in a Chrome Custom Tab (in-app browser sheet)
+  (real Android share sheet) toolbar, "Read full story" link that opens
+  the source in a Chrome Custom Tab (in-app browser sheet), and a
+  functional **Listen** button using Android's built-in on-device
+  text-to-speech (no external service/dependency, no special permission)
+  — reads the headline and body aloud, with **speed and pitch controls
+  in More → Listen settings**, persisted with DataStore so your
+  preferred pace carries across articles and app restarts
 - **World** — an unfiltered, chronological stream of everything the
   source has (no category narrowing), with quick access to Search and
   the same scroll-to-top button as Home. Deliberately *not* a re-skin

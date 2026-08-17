@@ -64,23 +64,40 @@ enum class AppTab(val route: String, val label: String) {
  * The real duplicate-call guard lives in the ViewModel (isLoading /
  * isLoadingMore / canLoadMore checks), which is cheap to call redundantly.
  */
+/**
+ * Watches [listState] and calls [onLoadMore] whenever the user is scrolled
+ * to within [buffer] items of the end of the list. Drop this inside any
+ * screen alongside its LazyColumn; it renders nothing itself.
+ *
+ * The check is computed directly inside snapshotFlow's block rather than
+ * through an extra `remember { derivedStateOf {} }` layer — snapshotFlow
+ * already reactively re-evaluates its block whenever a snapshot state it
+ * reads (listState.layoutInfo here) changes, so the derivedStateOf wrapper
+ * was redundant indirection, and specifically the kind that can miss the
+ * very first big state transition (loading spinner -> fully populated
+ * list) while still recovering fine on any later recomposition. That
+ * mismatch — works after any unrelated interaction, not on first load —
+ * is the exact bug this was causing.
+ *
+ * Deliberately does NOT de-duplicate consecutive "at the bottom" signals:
+ * if a previous load-more attempt failed, we still want a later scroll
+ * event near the bottom to try again rather than latching permanently.
+ * The real duplicate-call guard lives in the ViewModel (isLoading /
+ * isLoadingMore / canLoadMore checks), which is cheap to call redundantly.
+ */
 @Composable
 fun InfiniteScrollHandler(
     listState: LazyListState,
     buffer: Int = 4,
     onLoadMore: () -> Unit
 ) {
-    val shouldLoadMore = remember {
-        derivedStateOf {
+    LaunchedEffect(listState) {
+        snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val totalItems = layoutInfo.totalItemsCount
             val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
             totalItems > 0 && lastVisibleIndex >= totalItems - 1 - buffer
-        }
-    }
-    LaunchedEffect(listState) {
-        snapshotFlow { shouldLoadMore.value }
-            .collect { atEnd -> if (atEnd) onLoadMore() }
+        }.collect { atEnd -> if (atEnd) onLoadMore() }
     }
 }
 
