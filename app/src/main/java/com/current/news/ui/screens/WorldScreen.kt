@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.current.news.ui.components.InfiniteScrollHandler
+import com.current.news.ui.components.AutoLoadMoreWhenContentFits
 import com.current.news.ui.components.LoadMoreErrorFooter
 import com.current.news.ui.components.LoadingMoreFooter
 import com.current.news.ui.components.ScrollToTopButton
@@ -52,6 +53,13 @@ fun WorldScreen(
     val listState = rememberLazyListState()
 
     InfiniteScrollHandler(listState = listState) { viewModel.loadMoreWorld() }
+    AutoLoadMoreWhenContentFits(
+        listState = listState,
+        contentSignal = state.stories.size,
+        isLoading = state.isLoading,
+        isLoadingMore = state.isLoadingMore,
+        canLoadMore = state.canLoadMore
+    ) { viewModel.loadMoreWorld() }
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(

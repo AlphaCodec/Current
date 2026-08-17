@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.current.news.data.Article
 import com.current.news.ui.theme.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class AppTab(val route: String, val label: String) {
@@ -85,6 +86,43 @@ enum class AppTab(val route: String, val label: String) {
  * The real duplicate-call guard lives in the ViewModel (isLoading /
  * isLoadingMore / canLoadMore checks), which is cheap to call redundantly.
  */
+/**
+ * True when the list is scrolled within [buffer] items of its end. Shared
+ * by both the scroll-triggered [InfiniteScrollHandler] and the data-driven
+ * safety net below, so both use the exact same definition of "near the
+ * bottom" rather than two copies that could quietly drift apart.
+ */
+private fun isNearEndOfList(listState: LazyListState, buffer: Int): Boolean {
+    val layoutInfo = listState.layoutInfo
+    val totalItems = layoutInfo.totalItemsCount
+    val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+    return totalItems > 0 && lastVisibleIndex >= totalItems - 1 - buffer
+}
+
+/**
+ * Watches [listState] and calls [onLoadMore] whenever the user is scrolled
+ * to within [buffer] items of the end of the list. Drop this inside any
+ * screen alongside its LazyColumn; it renders nothing itself.
+ *
+ * The check is computed directly inside snapshotFlow's block rather than
+ * through an extra `remember { derivedStateOf {} }` layer — snapshotFlow
+ * already reactively re-evaluates its block whenever a snapshot state it
+ * reads (listState.layoutInfo here) changes, so the derivedStateOf wrapper
+ * was redundant indirection.
+ *
+ * This alone isn't sufficient, though: it only fires on an actual scroll
+ * *event*. If the freshly-loaded content already satisfies "near the
+ * bottom" the instant it appears (e.g. the whole first page fits on
+ * screen without any scrolling happening at all), there's no scroll event
+ * to react to and this handler alone would never fire on that first load —
+ * see [AutoLoadMoreWhenContentFits] for the other half of the fix.
+ *
+ * Deliberately does NOT de-duplicate consecutive "at the bottom" signals:
+ * if a previous load-more attempt failed, we still want a later scroll
+ * event near the bottom to try again rather than latching permanently.
+ * The real duplicate-call guard lives in the ViewModel (isLoading /
+ * isLoadingMore / canLoadMore checks), which is cheap to call redundantly.
+ */
 @Composable
 fun InfiniteScrollHandler(
     listState: LazyListState,
@@ -92,12 +130,40 @@ fun InfiniteScrollHandler(
     onLoadMore: () -> Unit
 ) {
     LaunchedEffect(listState) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItems > 0 && lastVisibleIndex >= totalItems - 1 - buffer
-        }.collect { atEnd -> if (atEnd) onLoadMore() }
+        snapshotFlow { isNearEndOfList(listState, buffer) }
+            .collect { atEnd -> if (atEnd) onLoadMore() }
+    }
+}
+
+/**
+ * Companion to [InfiniteScrollHandler]: re-checks "is the list already at
+ * (or past) its near-the-bottom threshold" every time the underlying data
+ * actually changes (item count, loading state), independent of any scroll
+ * gesture. This is what makes the very first page load correctly trigger
+ * a second page fetch when the first page alone doesn't fill/exceed the
+ * screen — a short list that never needs scrolling to be "seen in full"
+ * would otherwise leave infinite scroll looking inert until some unrelated
+ * recomposition (e.g. navigating elsewhere and back) happened to re-kick it.
+ *
+ * [contentSignal] should change whenever new items are added — e.g. the
+ * current item count — so this effect re-runs at exactly those points.
+ */
+@Composable
+fun AutoLoadMoreWhenContentFits(
+    listState: LazyListState,
+    contentSignal: Any?,
+    isLoading: Boolean,
+    isLoadingMore: Boolean,
+    canLoadMore: Boolean,
+    buffer: Int = 4,
+    onLoadMore: () -> Unit
+) {
+    LaunchedEffect(contentSignal, isLoading, isLoadingMore, canLoadMore) {
+        if (isLoading || isLoadingMore || !canLoadMore) return@LaunchedEffect
+        delay(150)
+        if (isNearEndOfList(listState, buffer)) {
+            onLoadMore()
+        }
     }
 }
 

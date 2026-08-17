@@ -39,6 +39,7 @@ import com.current.news.ui.components.Pill
 import com.current.news.ui.components.SectionLabel
 import com.current.news.ui.components.StoryRow
 import com.current.news.ui.components.InfiniteScrollHandler
+import com.current.news.ui.components.AutoLoadMoreWhenContentFits
 import com.current.news.ui.components.LoadingMoreFooter
 import com.current.news.ui.components.LoadMoreErrorFooter
 import com.current.news.ui.components.ScrollToTopButton
@@ -58,6 +59,13 @@ fun HomeScreen(
     val listState = rememberLazyListState()
 
     InfiniteScrollHandler(listState = listState) { viewModel.loadMoreHome() }
+    AutoLoadMoreWhenContentFits(
+        listState = listState,
+        contentSignal = state.stories.size,
+        isLoading = state.isLoading,
+        isLoadingMore = state.isLoadingMore,
+        canLoadMore = state.canLoadMore
+    ) { viewModel.loadMoreHome() }
 
     Box(Modifier.fillMaxSize()) {
         HomeFeedList(

@@ -61,7 +61,11 @@ data is opt-in.
   backs off the moment you touch it — user control always wins over the
   automatic rotation), ranked story list with **infinite scroll** (loads
   the next page automatically as you near the bottom, via NewsData.io's
-  `nextPage` token), and a **scroll-to-top button** that fades in once
+  `nextPage` token — backed by two independent triggers, a scroll-position
+  one and a data-arrival one, so a short first page that doesn't need any
+  scrolling to see in full still correctly triggers loading more, rather
+  than looking inert until some unrelated screen change happened to
+  reset things), and a **scroll-to-top button** that fades in once
   you've scrolled a few items down
 - **Article reader** — paper reading surface, drop-cap opening
   paragraph, real thumbnail, scroll progress indicator, save/share
@@ -71,7 +75,10 @@ data is opt-in.
   text-to-speech (no external service/dependency, no special permission)
   — reads the headline and body aloud, with **speed and pitch controls
   in More → Listen settings**, persisted with DataStore so your
-  preferred pace carries across articles and app restarts
+  preferred pace carries across articles and app restarts. The TTS
+  engine itself lives on `NewsViewModel` (app-session-scoped) rather
+  than being recreated per article, and a pulsing "STARTING" state
+  covers the platform's normal per-utterance startup latency
 - **World** — an unfiltered, chronological stream of everything the
   source has (no category narrowing), with quick access to Search and
   the same scroll-to-top button as Home. Deliberately *not* a re-skin

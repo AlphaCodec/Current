@@ -1,5 +1,11 @@
 package com.current.news.ui.screens
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -49,7 +56,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.current.news.ui.theme.*
-import com.current.news.util.TtsManager
 import com.current.news.viewmodel.NewsViewModel
 import com.current.news.viewmodel.SettingsViewModel
 import kotlin.math.roundToInt
@@ -76,9 +82,12 @@ fun ArticleScreen(
     val listState = rememberLazyListState()
 
     // ---- Listen (text-to-speech) ----
-    val ttsManager = remember { TtsManager(context) }
-    DisposableEffect(Unit) {
-        onDispose { ttsManager.shutdown() }
+    // ttsManager lives on the ViewModel (app-session-scoped), not remembered
+    // here per-screen — see NewsViewModel for why. This screen only stops
+    // playback (not the whole engine) when leaving or switching articles.
+    val ttsManager = viewModel.ttsManager
+    DisposableEffect(article.id) {
+        onDispose { ttsManager.stop() }
     }
     val ttsSpeed by settingsViewModel.ttsSpeed.collectAsState()
     val ttsPitch by settingsViewModel.ttsPitch.collectAsState()
@@ -244,12 +253,11 @@ fun ArticleScreen(
                 }
                 context.startActivity(android.content.Intent.createChooser(sendIntent, null))
             }
-            ReaderToolItem(
-                icon = if (ttsManager.isSpeaking.value) Icons.Filled.Headphones else Icons.Outlined.Headphones,
-                label = if (ttsManager.isSpeaking.value) "Stop" else "Listen",
-                tint = if (ttsManager.isSpeaking.value) Red else Color(0xFF8A8478)
+            ListenToolItem(
+                isStarting = ttsManager.isStarting.value,
+                isSpeaking = ttsManager.isSpeaking.value
             ) {
-                if (ttsManager.isSpeaking.value) {
+                if (ttsManager.isSpeaking.value || ttsManager.isStarting.value) {
                     ttsManager.stop()
                 } else {
                     ttsManager.speak(speakableText)
@@ -265,7 +273,7 @@ fun ArticleScreen(
         ListenSettingsDialog(
             speed = ttsSpeed,
             pitch = ttsPitch,
-            isSpeaking = ttsManager.isSpeaking.value,
+            isSpeaking = ttsManager.isSpeaking.value || ttsManager.isStarting.value,
             onSpeedChange = { settingsViewModel.setTtsSpeed(it) },
             onPitchChange = { settingsViewModel.setTtsPitch(it) },
             onStop = { ttsManager.stop() },
@@ -418,6 +426,57 @@ private fun ReaderIconButton(text: String, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Text(text, fontFamily = BodyFont, fontSize = 13.sp, color = Color(0xFF57534A))
+    }
+}
+
+@Composable
+private fun ListenToolItem(
+    isStarting: Boolean,
+    isSpeaking: Boolean,
+    onClick: () -> Unit
+) {
+    val tint = if (isSpeaking || isStarting) Red else Color(0xFF8A8478)
+
+    // Pulsing opacity while the engine is warming up / the utterance is
+    // queued but audio hasn't actually started yet — makes that gap
+    // visible instead of the button just looking unresponsive.
+    val iconAlpha = if (isStarting) {
+        val transition = rememberInfiniteTransition(label = "listen-starting")
+        val animatedAlpha by transition.animateFloat(
+            initialValue = 0.35f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 500, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "listen-starting-alpha"
+        )
+        animatedAlpha
+    } else {
+        1f
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable { onClick() }.padding(8.dp)
+    ) {
+        Icon(
+            if (isSpeaking) Icons.Filled.Headphones else Icons.Outlined.Headphones,
+            contentDescription = if (isSpeaking) "Stop" else "Listen",
+            tint = tint,
+            modifier = Modifier.size(18.dp).alpha(iconAlpha)
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            when {
+                isStarting -> "STARTING"
+                isSpeaking -> "STOP"
+                else -> "LISTEN"
+            },
+            fontFamily = MonoFont,
+            fontSize = 8.sp,
+            color = tint
+        )
     }
 }
 

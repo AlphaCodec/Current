@@ -7,6 +7,7 @@ import com.current.news.data.Article
 import com.current.news.data.BookmarksRepository
 import com.current.news.data.NewsRepository
 import com.current.news.data.RepoResult
+import com.current.news.util.TtsManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,6 +65,13 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private val bookmarksRepository = BookmarksRepository(application)
+
+    // Lives for the ViewModel's whole lifetime (i.e. the app session), not
+    // per-article — TextToSpeech engine init is genuinely slow-ish (tens to
+    // hundreds of ms), and recreating it every time an article screen opened
+    // was the real cause of "Listen takes a while to start" on every tap,
+    // not just the first one ever. See onCleared() for teardown.
+    val ttsManager = TtsManager(application)
 
     // Every article the app has seen this session, keyed by id — lets the
     // article reader look up a story without a dedicated "get by id" call,
@@ -406,5 +414,10 @@ class NewsViewModel(application: Application) : AndroidViewModel(application) {
             persisted.forEach { articleCache[it.id] = it }
             _savedArticles.value = persisted
         }
+    }
+
+    override fun onCleared() {
+        ttsManager.shutdown()
+        super.onCleared()
     }
 }
